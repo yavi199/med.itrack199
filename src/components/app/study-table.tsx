@@ -39,8 +39,7 @@ export function StudyTable() {
                 </div>
               </TableHead>
               <TableHead className="font-bold p-2 min-w-[300px]">Estudio</TableHead>
-              <TableHead className="text-center font-bold p-2" style={{ width: '120px'}}>F. Solicitud</TableHead>
-              <TableHead className="text-center font-bold p-2" style={{ width: '120px'}}>F. Realizado</TableHead>
+              <TableHead className="text-center font-bold p-2" style={{ width: '120px'}}>Fecha</TableHead>
               <TableHead className="p-2" style={{ width: '40px'}}></TableHead>
             </TableRow>
           </TableHeader>
@@ -69,8 +68,10 @@ export function StudyTable() {
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="p-2 text-muted-foreground align-top text-center text-xs">{req.requestDate}</TableCell>
-                <TableCell className="p-2 text-muted-foreground align-top text-center text-xs">{req.completionDate}</TableCell>
+                <TableCell className="p-2 align-top text-center text-xs space-y-1">
+                  <div className="font-medium text-red-600">{req.requestDate}</div>
+                  <div className="font-medium text-green-600">{req.completionDate}</div>
+                </TableCell>
                 <TableCell className="p-1 text-right align-top">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
