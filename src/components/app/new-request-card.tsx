@@ -10,7 +10,6 @@ import { cn } from '@/lib/utils';
 import {
     AlertDialog,
     AlertDialogAction,
-    AlertDialogCancel,
     AlertDialogContent,
     AlertDialogDescription,
     AlertDialogFooter,
@@ -20,12 +19,15 @@ import {
 import { Button } from '../ui/button';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { Label } from '../ui/label';
 
 
 export function NewRequestCard() {
     const [dragging, setDragging] = useState(false);
     const [loading, setLoading] = useState(false);
     const [extractedData, setExtractedData] = useState<ExtractOrderOutput | null>(null);
+    const [manualEntryData, setManualEntryData] = useState<Partial<ExtractOrderOutput> | null>(null);
+    const [patientId, setPatientId] = useState('');
     const { toast } = useToast();
 
     const handleFileChange = async (files: FileList | null) => {
@@ -47,7 +49,6 @@ export function NewRequestCard() {
                 try {
                     const result = await extractOrder({ fileDataUri: dataUri });
                     setExtractedData(result);
-                    console.log("Extracted data:", result);
                 } catch (error) {
                     toast({
                         variant: "destructive",
@@ -88,29 +89,30 @@ export function NewRequestCard() {
         handleFileChange(files);
     };
 
-    const handleCreateRequest = async () => {
-        if (!extractedData) return;
+    const handleCreateRequest = async (data?: ExtractOrderOutput) => {
+        const dataToSave = data || extractedData;
+        if (!dataToSave) return;
     
         setLoading(true);
         try {
             const studyData = {
-                patient: extractedData.patient,
-                studies: extractedData.studies,
-                diagnosis: extractedData.diagnosis,
+                patient: dataToSave.patient,
+                studies: dataToSave.studies,
+                diagnosis: dataToSave.diagnosis,
                 status: 'Pendiente',
                 requestDate: serverTimestamp(),
                 completionDate: null,
-                service: 'URG', // Default value, can be changed later
+                service: 'URG',
             };
 
             const docRef = await addDoc(collection(db, "studies"), studyData);
 
             toast({
                 title: "Solicitud Creada",
-                description: `Solicitud para ${extractedData.patient.fullName} ha sido creada con el ID: ${docRef.id}.`,
+                description: `Solicitud para ${dataToSave.patient.fullName} ha sido creada con el ID: ${docRef.id}.`,
             });
-            console.log("Creating request with data:", extractedData);
             setExtractedData(null);
+            setManualEntryData(null);
         } catch (error) {
             console.error("Error creating request: ", error);
             toast({
@@ -129,8 +131,36 @@ export function NewRequestCard() {
                 title: "Generando Autorización",
                 description: `Se está generando la autorización para ${extractedData.patient.fullName}.`,
             });
-            console.log("Generating authorization for data:", extractedData);
             setExtractedData(null);
+        }
+    };
+
+    const handleManualSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        const data: ExtractOrderOutput = {
+            patient: {
+                id: patientId,
+                fullName: formData.get('fullName') as string,
+                birthDate: formData.get('birthDate') as string,
+                entidad: formData.get('entidad') as string,
+            },
+            studies: [{
+                cups: formData.get('cups') as string,
+                nombre: formData.get('studyName') as string,
+            }],
+            diagnosis: {
+                code: formData.get('cie10') as string,
+                description: formData.get('diagnosisDescription') as string,
+            }
+        };
+        handleCreateRequest(data);
+    };
+
+    const handleIdInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' && patientId) {
+            e.preventDefault();
+            setManualEntryData({ patient: { id: patientId } });
         }
     };
     
@@ -162,7 +192,7 @@ export function NewRequestCard() {
                         )}
                     >
                         <div className="flex flex-col items-center justify-center gap-2 text-primary-foreground">
-                            {loading ? (
+                            {loading && !manualEntryData ? (
                                 <>
                                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                     <p className="text-sm font-semibold text-foreground">Procesando...</p>
@@ -181,6 +211,9 @@ export function NewRequestCard() {
                         <Input
                             placeholder="Crear solicitud por ID de paciente"
                             className="pl-10 h-10 text-sm"
+                            value={patientId}
+                            onChange={(e) => setPatientId(e.target.value)}
+                            onKeyDown={handleIdInputKeyDown}
                             disabled={loading}
                         />
                     </div>
@@ -197,11 +230,70 @@ export function NewRequestCard() {
                     </AlertDialogHeader>
                     <AlertDialogFooter className="sm:justify-between gap-2">
                         <Button variant="outline" onClick={handleGenerateAuthorization}>Generar Autorización PDF</Button>
-                        <Button onClick={handleCreateRequest} disabled={loading}>
+                        <Button onClick={() => handleCreateRequest()} disabled={loading}>
                             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Crear Solicitud
                         </Button>
                     </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={!!manualEntryData} onOpenChange={(open) => !open && setManualEntryData(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Crear Solicitud Manual</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Ingrese los detalles para el paciente con ID: <span className="font-bold">{patientId}</span>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <form onSubmit={handleManualSubmit}>
+                        <div className="grid gap-4 py-4">
+                            <h3 className="font-semibold text-sm">Datos del Paciente</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="fullName">Nombre Completo</Label>
+                                    <Input id="fullName" name="fullName" required />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="birthDate">Fecha Nacimiento</Label>
+                                    <Input id="birthDate" name="birthDate" type="date" required />
+                                </div>
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="entidad">Entidad/Aseguradora</Label>
+                                <Input id="entidad" name="entidad" required />
+                            </div>
+                            <h3 className="font-semibold text-sm pt-4">Datos del Estudio</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="cups">CUPS</Label>
+                                    <Input id="cups" name="cups" required />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="studyName">Nombre del Estudio</Label>
+                                    <Input id="studyName" name="studyName" required />
+                                </div>
+                            </div>
+                             <h3 className="font-semibold text-sm pt-4">Datos del Diagnóstico</h3>
+                             <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="cie10">CIE-10</Label>
+                                    <Input id="cie10" name="cie10" required />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="diagnosisDescription">Descripción Diagnóstico</Label>
+                                    <Input id="diagnosisDescription" name="diagnosisDescription" required />
+                                </div>
+                            </div>
+                        </div>
+                        <AlertDialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setManualEntryData(null)}>Cancelar</Button>
+                            <Button type="submit" disabled={loading}>
+                                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Crear Solicitud
+                            </Button>
+                        </AlertDialogFooter>
+                    </form>
                 </AlertDialogContent>
             </AlertDialog>
         </>
