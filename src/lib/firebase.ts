@@ -4,12 +4,12 @@ import { getStorage } from "firebase/storage";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    apiKey: "AIzaSyD9IOKISuv0-j3HKtQl-bfFYycAQLm50xk",
     authDomain: "med-itrack-470514.firebaseapp.com",
     projectId: "med-itrack-470514",
     storageBucket: "med-itrack-470514.appspot.com",
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    messagingSenderId: "922998764855",
+    appId: "1:922998764855:web:bafbfb2535c62af23b96b2",
 };
 
 // Initialize Firebase
