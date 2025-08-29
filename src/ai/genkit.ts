@@ -1,4 +1,4 @@
-import {genkit} from 'genkit';
+import {genkit, configureGenkit} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
 import {config} from 'dotenv';
 
