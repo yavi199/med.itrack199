@@ -18,6 +18,9 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from '../ui/button';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+
 
 export function NewRequestCard() {
     const [dragging, setDragging] = useState(false);
@@ -85,14 +88,38 @@ export function NewRequestCard() {
         handleFileChange(files);
     };
 
-    const handleCreateRequest = () => {
-        if (extractedData) {
+    const handleCreateRequest = async () => {
+        if (!extractedData) return;
+    
+        setLoading(true);
+        try {
+            const studyData = {
+                patient: extractedData.patient,
+                studies: extractedData.studies,
+                diagnosis: extractedData.diagnosis,
+                status: 'Pendiente',
+                requestDate: serverTimestamp(),
+                completionDate: null,
+                service: 'URG', // Default value, can be changed later
+            };
+
+            const docRef = await addDoc(collection(db, "studies"), studyData);
+
             toast({
                 title: "Solicitud Creada",
-                description: `Solicitud para ${extractedData.patient.fullName} ha sido creada.`,
+                description: `Solicitud para ${extractedData.patient.fullName} ha sido creada con el ID: ${docRef.id}.`,
             });
             console.log("Creating request with data:", extractedData);
             setExtractedData(null);
+        } catch (error) {
+            console.error("Error creating request: ", error);
+            toast({
+                variant: "destructive",
+                title: "Error al Crear Solicitud",
+                description: "No se pudo guardar la solicitud en la base de datos.",
+            });
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -170,7 +197,10 @@ export function NewRequestCard() {
                     </AlertDialogHeader>
                     <AlertDialogFooter className="sm:justify-between gap-2">
                         <Button variant="outline" onClick={handleGenerateAuthorization}>Generar Autorización PDF</Button>
-                        <Button onClick={handleCreateRequest}>Crear Solicitud</Button>
+                        <Button onClick={handleCreateRequest} disabled={loading}>
+                            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Crear Solicitud
+                        </Button>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
