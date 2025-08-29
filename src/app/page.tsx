@@ -164,8 +164,8 @@ export default function HomePage() {
     <button
       onClick={onClick}
       className={cn(
-        'bg-muted/50 p-4 rounded-lg text-center transition-all duration-200 border-2',
-        isActive ? 'border-primary bg-primary/10 shadow-md' : 'border-transparent hover:bg-muted',
+        'bg-muted/50 p-4 rounded-lg text-center transition-all duration-200 border-2 shadow-lg shadow-primary/20',
+        isActive ? 'border-primary bg-primary/10' : 'border-transparent hover:bg-muted',
         className
       )}
     >
@@ -225,5 +225,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    
