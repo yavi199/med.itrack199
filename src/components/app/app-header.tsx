@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut } from 'lucide-react';
+import { firebaseConfig } from "@/lib/firebase";
 
 const AppLogo = (props: any) => (
   <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
@@ -26,7 +27,9 @@ export function AppHeader() {
               <h1 className="text-2xl font-bold font-headline text-gray-800 dark:text-gray-200">
                 Med-iTrack
               </h1>
-              <p className="text-xs text-muted-foreground font-medium tracking-wide">Precision you can trace.</p>
+              <p className="text-xs text-muted-foreground font-medium tracking-wide">
+                Project ID: <span className="font-bold text-primary">{firebaseConfig.projectId}</span>
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-4">
