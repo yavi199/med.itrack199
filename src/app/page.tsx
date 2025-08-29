@@ -9,6 +9,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Study } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 
 type Summary = {
@@ -22,31 +23,39 @@ type ServiceSummary = {
     URG: number;
     HOS: number;
     UCI: number;
+    CEX: number;
+}
+
+type ActiveFilters = {
+    modalities: string[];
+    services: string[];
 }
 
 export default function HomePage() {
   const [summary, setSummary] = useState<Summary>({ ECO: 0, RX: 0, TAC: 0, RMN: 0 });
-  const [serviceSummary, setServiceSummary] = useState<ServiceSummary>({ URG: 0, HOS: 0, UCI: 0 });
+  const [serviceSummary, setServiceSummary] = useState<ServiceSummary>({ URG: 0, HOS: 0, UCI: 0, CEX: 0 });
   const [studies, setStudies] = useState<Study[]>([]);
   const [filteredStudies, setFilteredStudies] = useState<Study[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeFilters, setActiveFilters] = useState<ActiveFilters>({ modalities: [], services: [] });
 
   useEffect(() => {
     const q = query(collection(db, "studies"), where("status", "==", "Pendiente"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const studiesData: Study[] = [];
         const newSummary: Summary = { ECO: 0, RX: 0, TAC: 0, RMN: 0 };
-        const newServiceSummary: ServiceSummary = { URG: 0, HOS: 0, UCI: 0 };
+        const newServiceSummary: ServiceSummary = { URG: 0, HOS: 0, UCI: 0, CEX: 0 };
         
         querySnapshot.forEach((doc) => {
             const data = doc.data();
-
-            // Populate studies data for the table
             const firstStudy = data.studies && data.studies.length > 0 ? data.studies[0] : {};
+            const modality = (firstStudy.nombre?.slice(0, 3) || 'N/A').toUpperCase();
+            const service = (data.service || 'N/A').toUpperCase();
+
              studiesData.push({
                 id: doc.id,
                 status: data.status || 'Pendiente',
-                service: data.service || 'N/A',
+                service: service,
                 patient: {
                     fullName: data.patient?.fullName || 'N/A',
                     id: data.patient?.id || 'N/A',
@@ -55,44 +64,93 @@ export default function HomePage() {
                 studies: [{
                     nombre: firstStudy.nombre || 'N/A',
                     cups: firstStudy.cups || 'N/A',
-                    modality: (firstStudy.nombre?.slice(0, 3) || 'N/A').toUpperCase(),
+                    modality: modality,
                 }],
                 requestDate: data.requestDate,
                 completionDate: data.completionDate,
             });
 
             // Calculate summaries
-            if (data.studies && data.studies.length > 0) {
-                const modality = (data.studies[0].nombre?.slice(0, 3) || 'N/A').toUpperCase();
-                if (modality in newSummary) {
-                    newSummary[modality as keyof Summary]++;
-                }
+            if (modality in newSummary) {
+                newSummary[modality as keyof Summary]++;
             }
-            const service = data.service?.toUpperCase();
-             if (service && service in newServiceSummary) {
+             if (service in newServiceSummary) {
                 newServiceSummary[service as keyof ServiceSummary]++;
             }
         });
 
         setStudies(studiesData);
-        setFilteredStudies(studiesData);
-        setSummary(newSummary);
-        setServiceSummary(newServiceSummary);
     });
 
     return () => unsubscribe();
   }, []);
 
   useEffect(() => {
+    let filteredData = studies;
     const lowercasedFilter = searchTerm.toLowerCase();
-    const filteredData = studies.filter(item => {
-      return (
-        item.patient.fullName.toLowerCase().includes(lowercasedFilter) ||
-        item.patient.id.toLowerCase().includes(lowercasedFilter)
-      );
-    });
+
+    // Filter by search term
+    if (searchTerm) {
+        filteredData = filteredData.filter(item => {
+            return (
+                item.patient.fullName.toLowerCase().includes(lowercasedFilter) ||
+                item.patient.id.toLowerCase().includes(lowercasedFilter)
+            );
+        });
+    }
+    
+    // Filter by active modalities
+    if (activeFilters.modalities.length > 0) {
+        filteredData = filteredData.filter(item => 
+            activeFilters.modalities.includes(item.studies[0].modality)
+        );
+    }
+
+    // Filter by active services
+    if (activeFilters.services.length > 0) {
+        filteredData = filteredData.filter(item =>
+            activeFilters.services.includes(item.service)
+        );
+    }
+    
     setFilteredStudies(filteredData);
-  }, [searchTerm, studies]);
+  }, [searchTerm, studies, activeFilters]);
+
+  const toggleFilter = (type: 'modalities' | 'services', value: string) => {
+    setActiveFilters(prev => {
+        const currentFilters = prev[type];
+        const newFilters = currentFilters.includes(value)
+            ? currentFilters.filter(f => f !== value)
+            : [...currentFilters, value];
+        return { ...prev, [type]: newFilters };
+    });
+  };
+
+  const FilterButton = ({
+    label,
+    count,
+    isActive,
+    onClick,
+    className = ''
+  }: {
+    label: string;
+    count: number;
+    isActive: boolean;
+    onClick: () => void;
+    className?: string;
+  }) => (
+    <button
+      onClick={onClick}
+      className={cn(
+        'bg-muted/50 p-4 rounded-lg text-center transition-all duration-200 border-2',
+        isActive ? 'border-primary bg-primary/10 shadow-md' : 'border-transparent hover:bg-muted',
+        className
+      )}
+    >
+      <p className="text-3xl font-bold font-headline">{count}</p>
+      <p className="text-sm text-muted-foreground font-medium">{label}</p>
+    </button>
+  );
 
 
   return (
@@ -105,40 +163,30 @@ export default function HomePage() {
           <Card className="shadow-lg border-border xl:col-span-2 flex flex-col">
             <CardHeader className="p-4">
               <CardTitle className="font-headline font-semibold text-lg text-foreground">
-                Resumen de Estudios Pendientes
+                Resumen y Filtros de Estudios Pendientes
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0 grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-muted/50 p-4 rounded-lg text-center">
-                <p className="text-3xl font-bold font-headline">{summary.ECO}</p>
-                <p className="text-sm text-muted-foreground">ECO</p>
-              </div>
-              <div className="bg-muted/50 p-4 rounded-lg text-center">
-                <p className="text-3xl font-bold font-headline">{summary.RX}</p>
-                <p className="text-sm text-muted-foreground">RX</p>
-              </div>
-              <div className="bg-muted/50 p-4 rounded-lg text-center">
-                <p className="text-3xl font-bold font-headline">{summary.TAC}</p>
-                <p className="text-sm text-muted-foreground">TAC</p>
-              </div>
-              <div className="bg-muted/50 p-4 rounded-lg text-center">
-                <p className="text-3xl font-bold font-headline">{summary.RMN}</p>
-                <p className="text-sm text-muted-foreground">RMN</p>
-              </div>
+              {Object.entries(summary).map(([key, value]) => (
+                <FilterButton
+                    key={key}
+                    label={key}
+                    count={value}
+                    isActive={activeFilters.modalities.includes(key)}
+                    onClick={() => toggleFilter('modalities', key)}
+                />
+              ))}
             </CardContent>
-            <CardFooter className="p-4 pt-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-red-100 p-3 rounded-lg text-center border border-red-200 dark:bg-red-900/20 dark:border-red-800/50">
-                <p className="text-xl font-bold font-headline text-red-800 dark:text-red-300">{serviceSummary.URG}</p>
-                <p className="text-xs text-red-700 dark:text-red-400 font-medium">Urgencias</p>
-              </div>
-              <div className="bg-blue-100 p-3 rounded-lg text-center border border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/50">
-                <p className="text-xl font-bold font-headline text-blue-800 dark:text-blue-300">{serviceSummary.HOS}</p>
-                <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">Hospitalización</p>
-              </div>
-              <div className="bg-purple-100 p-3 rounded-lg text-center border border-purple-200 dark:bg-purple-900/20 dark:border-purple-800/50">
-                <p className="text-xl font-bold font-headline text-purple-800 dark:text-purple-300">{serviceSummary.UCI}</p>
-                <p className="text-xs text-purple-700 dark:text-purple-400 font-medium">UCI</p>
-              </div>
+            <CardFooter className="p-4 pt-2 grid grid-cols-2 md:grid-cols-4 gap-4">
+               {Object.entries(serviceSummary).map(([key, value]) => (
+                <FilterButton
+                    key={key}
+                    label={key === 'CEX' ? 'C. Externa' : key}
+                    count={value}
+                    isActive={activeFilters.services.includes(key)}
+                    onClick={() => toggleFilter('services', key)}
+                />
+              ))}
             </CardFooter>
           </Card>
         </div>
@@ -146,7 +194,7 @@ export default function HomePage() {
         <div>
           <StudyTable 
             studies={filteredStudies} 
-            loading={studies.length === 0} 
+            loading={studies.length === 0 && !searchTerm && activeFilters.modalities.length === 0 && activeFilters.services.length === 0} 
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
             />
