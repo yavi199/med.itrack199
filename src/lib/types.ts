@@ -7,6 +7,7 @@ export type Study = {
         fullName: string;
         id: string;
         entidad: string;
+        birthDate?: string;
     };
     studies: {
         nombre: string;
@@ -23,4 +24,7 @@ export type Study = {
     completionDate: {
         toDate: () => Date;
     } | null;
+    cancellationReason?: string;
 };
+
+    

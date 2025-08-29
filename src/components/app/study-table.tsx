@@ -1,6 +1,7 @@
 
 "use client"
 
+import React, { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,12 +10,23 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { MoreVertical, Search, CheckCircle, Clock, XCircle, Loader2 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { cn } from "@/lib/utils";
-import { format } from 'date-fns';
+import { format, differenceInYears } from 'date-fns';
 import { Study } from "@/lib/types";
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast";
-
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 type StudyTableProps = {
     studies: Study[];
@@ -23,7 +35,6 @@ type StudyTableProps = {
     setSearchTerm: (term: string) => void;
 };
 
-
 const statusConfig = {
     'Pendiente': { icon: Clock, className: 'bg-red-600 dark:bg-red-700 border-red-600 dark:border-red-700 text-white dark:text-white', iconClassName: 'text-white dark:text-white', label: 'Pendiente' },
     'Completado': { icon: CheckCircle, className: 'bg-green-600 dark:bg-green-700 border-green-600 dark:border-green-700 text-white dark:text-white', iconClassName: 'text-white dark:text-white', label: 'Completado' },
@@ -31,9 +42,19 @@ const statusConfig = {
     'Cancelado': { icon: XCircle, className: 'bg-orange-500 dark:bg-orange-600 border-orange-500 dark:border-orange-600 text-white dark:text-white', iconClassName: 'text-white dark:text-white', label: 'Cancelado' },
 };
 
+const cancellationReasons = [
+    'Creatinina elevada',
+    'Sin ayuno',
+    'Requiere sedación',
+    'Estudio cancelado por médico',
+    'Estudio mal cargado'
+];
+
 export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: StudyTableProps) {
     
     const { toast } = useToast();
+    const [isCancelling, setIsCancelling] = useState(false);
+    const [selectedReason, setSelectedReason] = useState(cancellationReasons[0]);
 
     const handleStatusChange = async (studyId: string, currentStatus: string) => {
         if (currentStatus !== 'Pendiente') return;
@@ -57,6 +78,31 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
             });
         }
     };
+    
+    const handleCancelStudy = async (studyId: string) => {
+        setIsCancelling(true);
+        const studyRef = doc(db, "studies", studyId);
+        try {
+            await updateDoc(studyRef, {
+                status: 'Cancelado',
+                cancellationReason: selectedReason,
+                completionDate: serverTimestamp(),
+            });
+            toast({
+                title: 'Estudio Cancelado',
+                description: `El estudio ha sido marcado como cancelado. Motivo: ${selectedReason}`,
+            });
+        } catch (error) {
+            console.error('Error cancelling study:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Error al Cancelar',
+                description: 'No se pudo actualizar el estado del estudio.',
+            });
+        } finally {
+            setIsCancelling(false);
+        }
+    };
 
     const formatDate = (dateObj: { toDate: () => Date } | null) => {
         if (!dateObj) return 'N/A';
@@ -66,6 +112,19 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
             return 'Fecha inválida';
         }
     };
+
+    const getAge = (birthDate: string | undefined) => {
+        if (!birthDate) return '';
+        try {
+            const dob = new Date(birthDate);
+            if (isNaN(dob.getTime())) return '';
+            const age = differenceInYears(new Date(), dob);
+            return `${age}a`;
+        } catch {
+            return '';
+        }
+    };
+
 
     return (
         <Card className="shadow-lg border-border">
@@ -111,6 +170,7 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
                             studies.map((req) => {
                                 const { icon: Icon, className, iconClassName, label } = statusConfig[req.status as keyof typeof statusConfig] || statusConfig.Pendiente;
                                 const study = req.studies[0];
+                                const age = getAge(req.patient.birthDate);
                                 return (
                                     <TableRow key={req.id} className="text-sm">
                                         <TableCell className="p-1 align-top h-full">
@@ -128,9 +188,12 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
                                             </button>
                                         </TableCell>
                                         <TableCell className="p-2 align-top text-center font-bold">{req.service}</TableCell>
-                                        <TableCell className="p-2 align-top">
-                                            <div className="font-bold uppercase text-sm">{req.patient.fullName}</div>
-                                            <div className="text-muted-foreground uppercase text-xs">ID: {req.patient.id} | {req.patient.entidad}</div>
+                                        <TableCell className="p-2 align-top max-w-[300px]">
+                                            <div className="font-bold uppercase text-sm truncate">{req.patient.fullName}</div>
+                                            <div className="text-muted-foreground uppercase text-xs truncate">
+                                                ID: {req.patient.id} | {req.patient.entidad} | {req.patient.birthDate} ({age})
+                                                {req.cancellationReason && <span className="text-orange-500 font-semibold ml-2">({req.cancellationReason})</span>}
+                                            </div>
                                         </TableCell>
                                         <TableCell className="p-2 align-top">
                                             <div className="flex items-start gap-3">
@@ -149,15 +212,45 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
                                             <div className="font-medium text-green-600">{formatDate(req.completionDate)}</div>
                                         </TableCell>
                                         <TableCell className="p-1 text-right align-top">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem>Editar</DropdownMenuItem>
-                                                    <DropdownMenuItem>Cancelar</DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                            <AlertDialog>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem>Editar</DropdownMenuItem>
+                                                        <AlertDialogTrigger asChild>
+                                                            <DropdownMenuItem
+                                                                onSelect={(e) => e.preventDefault()}
+                                                                disabled={req.status === 'Cancelado' || req.status === 'Completado'}
+                                                            >
+                                                                Cancelar
+                                                            </DropdownMenuItem>
+                                                        </AlertDialogTrigger>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Cancelar Estudio</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            Selecciona un motivo para la cancelación del estudio de <span className="font-bold">{req.patient.fullName}</span>. Esta acción no se puede deshacer.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <RadioGroup defaultValue={selectedReason} onValueChange={setSelectedReason} className="my-4">
+                                                        {cancellationReasons.map(reason => (
+                                                            <div key={reason} className="flex items-center space-x-2">
+                                                                <RadioGroupItem value={reason} id={reason} />
+                                                                <Label htmlFor={reason}>{reason}</Label>
+                                                            </div>
+                                                        ))}
+                                                    </RadioGroup>
+                                                    <AlertDialogAction onClick={() => handleCancelStudy(req.id)} disabled={isCancelling}>
+                                                        {isCancelling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                        Confirmar Cancelación
+                                                    </AlertDialogAction>
+                                                    <AlertDialogCancel>Volver</AlertDialogCancel>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
                                         </TableCell>
                                     </TableRow>
                                 )
@@ -169,3 +262,5 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
         </Card>
     );
 }
+
+    

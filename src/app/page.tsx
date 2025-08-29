@@ -38,6 +38,7 @@ export default function HomePage() {
   const [filteredStudies, setFilteredStudies] = useState<Study[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({ modalities: [], services: [] });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const q = query(collection(db, "studies"), orderBy("requestDate", "desc"));
@@ -61,6 +62,7 @@ export default function HomePage() {
                     fullName: data.patient?.fullName || 'N/A',
                     id: data.patient?.id || 'N/A',
                     entidad: data.patient?.entidad || 'N/A',
+                    birthDate: data.patient?.birthDate,
                 },
                 studies: [{
                     nombre: firstStudy.nombre || 'N/A',
@@ -73,10 +75,12 @@ export default function HomePage() {
                 },
                 requestDate: data.requestDate,
                 completionDate: data.completionDate,
+                cancellationReason: data.cancellationReason
             });
         });
 
         setStudies(studiesData);
+        setLoading(false);
     });
 
     return () => unsubscribe();
@@ -212,7 +216,7 @@ export default function HomePage() {
         <div>
           <StudyTable 
             studies={filteredStudies} 
-            loading={studies.length === 0 && !searchTerm && activeFilters.modalities.length === 0 && activeFilters.services.length === 0} 
+            loading={loading}
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
             />
@@ -221,3 +225,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    
