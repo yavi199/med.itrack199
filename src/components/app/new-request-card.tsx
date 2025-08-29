@@ -90,15 +90,16 @@ export function NewRequestCard() {
 
     const handleCreateRequest = async (dataToSave: ExtractOrderOutput | null) => {
         if (!dataToSave) return;
-    
+
         setLoading(true);
         try {
+            // Ensure data is plain objects for Firestore
             const studyData = {
-                patient: dataToSave.patient,
-                studies: dataToSave.studies,
-                diagnosis: dataToSave.diagnosis,
-                physician: dataToSave.physician,
-                order: dataToSave.order,
+                patient: { ...dataToSave.patient },
+                studies: dataToSave.studies.map(s => ({ ...s })),
+                diagnosis: { ...dataToSave.diagnosis },
+                physician: { ...dataToSave.physician },
+                order: { ...dataToSave.order },
                 status: 'Pendiente',
                 requestDate: serverTimestamp(),
                 completionDate: null,
@@ -136,7 +137,7 @@ export function NewRequestCard() {
             setExtractedData(null);
         }
     };
-    
+
     const handleManualSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
@@ -362,3 +363,5 @@ export function NewRequestCard() {
         </>
     );
 }
+
+    
