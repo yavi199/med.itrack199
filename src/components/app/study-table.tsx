@@ -100,8 +100,10 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
                                                 <Badge variant="outline" className="flex items-center justify-center w-12 h-10 border-2 font-semibold rounded-md text-sm">{study.modality}</Badge>
                                                 <div>
                                                     <div className="font-bold uppercase text-sm leading-tight">{study.nombre}</div>
-                                                    <div className="text-muted-foreground text-xs font-medium">CUPS: {study.cups}</div>
-                                                    <div className="text-blue-600 dark:text-blue-400 text-xs font-semibold">DX: {req.diagnosis.code} - {req.diagnosis.description}</div>
+                                                    <div className="text-muted-foreground text-xs font-medium">
+                                                        <span>CUPS: {study.cups}</span>
+                                                        <span className="text-blue-600 dark:text-blue-400 font-semibold ml-2">DX: {req.diagnosis.code} - {req.diagnosis.description}</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </TableCell>
