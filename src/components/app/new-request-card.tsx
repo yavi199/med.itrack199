@@ -26,7 +26,7 @@ export function NewRequestCard() {
     const [dragging, setDragging] = useState(false);
     const [loading, setLoading] = useState(false);
     const [extractedData, setExtractedData] = useState<ExtractOrderOutput | null>(null);
-    const [manualEntryData, setManualEntryData] = useState<Partial<ExtractOrderOutput> | null>(null);
+    const [showManualEntry, setShowManualEntry] = useState(false);
     const [patientId, setPatientId] = useState('');
     const { toast } = useToast();
 
@@ -89,8 +89,7 @@ export function NewRequestCard() {
         handleFileChange(files);
     };
 
-    const handleCreateRequest = async (data?: Partial<ExtractOrderOutput>) => {
-        const dataToSave = data || extractedData;
+    const handleCreateRequest = async (dataToSave: ExtractOrderOutput) => {
         if (!dataToSave) return;
     
         setLoading(true);
@@ -112,7 +111,7 @@ export function NewRequestCard() {
                 description: `Solicitud para ${dataToSave.patient?.fullName} ha sido creada con el ID: ${docRef.id}.`,
             });
             setExtractedData(null);
-            setManualEntryData(null);
+            setShowManualEntry(false);
             setPatientId('');
         } catch (error) {
             console.error("Error creating request: ", error);
@@ -135,7 +134,7 @@ export function NewRequestCard() {
             setExtractedData(null);
         }
     };
-
+    
     const handleManualSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
@@ -161,7 +160,7 @@ export function NewRequestCard() {
     const handleIdInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter' && patientId) {
             e.preventDefault();
-            setManualEntryData({ patient: { id: patientId } });
+            setShowManualEntry(true);
         }
     };
     
@@ -193,7 +192,7 @@ export function NewRequestCard() {
                         )}
                     >
                         <div className="flex flex-col items-center justify-center gap-2 text-primary-foreground">
-                            {loading && !manualEntryData ? (
+                            {loading && !showManualEntry ? (
                                 <>
                                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                     <p className="text-sm font-semibold text-foreground">Procesando...</p>
@@ -231,7 +230,7 @@ export function NewRequestCard() {
                     </AlertDialogHeader>
                     <AlertDialogFooter className="sm:justify-between gap-2">
                         <Button variant="outline" onClick={handleGenerateAuthorization}>Generar Autorización PDF</Button>
-                        <Button onClick={() => handleCreateRequest()} disabled={loading}>
+                        <Button onClick={() => extractedData && handleCreateRequest(extractedData)} disabled={loading}>
                             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Crear Solicitud
                         </Button>
@@ -239,7 +238,7 @@ export function NewRequestCard() {
                 </AlertDialogContent>
             </AlertDialog>
 
-            <AlertDialog open={!!manualEntryData} onOpenChange={(open) => !open && setManualEntryData(null)}>
+            <AlertDialog open={showManualEntry} onOpenChange={(open) => { if (!open) { setShowManualEntry(false); setPatientId(''); } }}>
                 <AlertDialogContent>
                     <form onSubmit={handleManualSubmit}>
                         <AlertDialogHeader>
@@ -288,7 +287,7 @@ export function NewRequestCard() {
                             </div>
                         </div>
                         <AlertDialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setManualEntryData(null)}>Cancelar</Button>
+                            <Button type="button" variant="outline" onClick={() => setShowManualEntry(false)}>Cancelar</Button>
                             <Button type="submit" disabled={loading}>
                                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Crear Solicitud
