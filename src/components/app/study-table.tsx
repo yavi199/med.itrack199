@@ -11,6 +11,10 @@ import { Card } from '../ui/card';
 import { cn } from "@/lib/utils";
 import { format } from 'date-fns';
 import { Study } from "@/lib/types";
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useToast } from "@/hooks/use-toast";
+
 
 type StudyTableProps = {
     studies: Study[];
@@ -29,6 +33,31 @@ const statusConfig = {
 
 export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: StudyTableProps) {
     
+    const { toast } = useToast();
+
+    const handleStatusChange = async (studyId: string, currentStatus: string) => {
+        if (currentStatus !== 'Pendiente') return;
+
+        const studyRef = doc(db, "studies", studyId);
+        try {
+            await updateDoc(studyRef, {
+                status: 'Completado',
+                completionDate: serverTimestamp()
+            });
+            toast({
+                title: "Estudio Actualizado",
+                description: "El estado del estudio se ha cambiado a Completado.",
+            });
+        } catch (error) {
+            console.error("Error updating study status: ", error);
+            toast({
+                variant: "destructive",
+                title: "Error al Actualizar",
+                description: "No se pudo cambiar el estado del estudio.",
+            });
+        }
+    };
+
     const formatDate = (dateObj: { toDate: () => Date } | null) => {
         if (!dateObj) return 'N/A';
         try {
@@ -85,10 +114,18 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
                                 return (
                                     <TableRow key={req.id} className="text-sm">
                                         <TableCell className="p-1 align-top h-full">
-                                            <div className={cn('w-full h-full flex flex-col items-center justify-center gap-1 p-2 rounded-md border', className)}>
+                                            <button 
+                                                onClick={() => handleStatusChange(req.id, req.status)}
+                                                disabled={req.status !== 'Pendiente'}
+                                                className={cn(
+                                                    'w-full h-full flex flex-col items-center justify-center gap-1 p-2 rounded-md border transition-colors',
+                                                     className,
+                                                     req.status === 'Pendiente' && 'hover:bg-opacity-80'
+                                                )}
+                                            >
                                                 <Icon className={cn('h-5 w-5', iconClassName)} />
                                                 <p className='text-[10px] font-bold'>{label.toUpperCase()}</p>
-                                            </div>
+                                            </button>
                                         </TableCell>
                                         <TableCell className="p-2 align-top text-center font-bold">{req.service}</TableCell>
                                         <TableCell className="p-2 align-top">
