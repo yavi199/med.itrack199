@@ -31,6 +31,15 @@ type ActiveFilters = {
     services: string[];
 }
 
+const getModality = (studyName: string): string => {
+    const name = studyName.toUpperCase();
+    if (name.includes('TOMOGRAFIA') || name.includes('TAC')) return 'TAC';
+    if (name.includes('ECOGRAFIA')) return 'ECO';
+    if (name.includes('RESONANCIA') || name.includes('RMN')) return 'RMN';
+    if (name.includes('RAYOS X') || name.includes('RX')) return 'RX';
+    return (name.slice(0, 3) || 'N/A');
+}
+
 export default function HomePage() {
   const [summary, setSummary] = useState<Summary>({ ECO: 0, RX: 0, TAC: 0, RMN: 0 });
   const [serviceSummary, setServiceSummary] = useState<ServiceSummary>({ URG: 0, HOSP: 0, UCI: 0, 'C. EXT': 0 });
@@ -48,7 +57,7 @@ export default function HomePage() {
         querySnapshot.forEach((doc) => {
             const data = doc.data();
             const firstStudy = data.studies && data.studies.length > 0 ? data.studies[0] : {};
-            const modality = (firstStudy.nombre?.slice(0, 3) || 'N/A').toUpperCase();
+            const modality = getModality(firstStudy.nombre || '');
             
             let service = (data.service || 'N/A').toUpperCase();
             if (service === 'C.EXT') service = 'C. EXT';
