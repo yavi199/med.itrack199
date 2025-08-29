@@ -9,13 +9,13 @@ import { getAuth } from "firebase/auth";
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 export const firebaseConfig = {
-  apiKey: "AIzaSyBI96qh9EbuO0h8F1MBAYKwOloCrxaf6rk",
-  authDomain: "med-itrack199.firebaseapp.com",
-  projectId: "med-itrack199",
-  storageBucket: "med-itrack199.appspot.com",
-  messagingSenderId: "324429977043",
-  appId: "1:324429977043:web:e3092fb39e1e04751bcb26",
-  measurementId: "G-C37WHTVBJ7"
+  apiKey: "<YOUR_API_KEY>",
+  authDomain: "<YOUR_AUTH_DOMAIN>",
+  projectId: "<YOUR_PROJECT_ID>",
+  storageBucket: "<YOUR_STORAGE_BUCKET>",
+  messagingSenderId: "<YOUR_MESSAGING_SENDER_ID>",
+  appId: "<YOUR_APP_ID>",
+  measurementId: "<YOUR_MEASUREMENT_ID>"
 };
 
 // Initialize Firebase
@@ -26,3 +26,5 @@ const storage = getStorage(app);
 const auth = getAuth(app);
 
 export { app, db, storage, auth };
+
+    

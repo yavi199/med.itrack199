@@ -54,9 +54,8 @@ export function NewRequestCard() {
                     toast({
                         variant: "destructive",
                         title: "Error de Extracción",
-                        description: "No se pudo procesar el archivo. Revisa la consola para más detalles.",
+                        description: "No se pudo procesar el archivo. Intenta de nuevo.",
                     });
-                    console.error("Extraction error:", error);
                 } finally {
                     setIsExtracting(false);
                 }
@@ -118,7 +117,6 @@ export function NewRequestCard() {
             setShowManualEntry(false);
             setPatientId('');
         } catch (error) {
-            console.error("Error creating request: ", error);
             toast({
                 variant: "destructive",
                 title: "Error al Crear Solicitud",
@@ -365,3 +363,5 @@ export function NewRequestCard() {
         </>
     );
 }
+
+    

@@ -93,7 +93,6 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
                 description: `El estado del estudio se ha cambiado a ${newStatus}.`,
             });
         } catch (error) {
-            console.error("Error updating study status: ", error);
             toast({
                 variant: "destructive",
                 title: "Error al Actualizar",
@@ -118,7 +117,6 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
                 description: `El estudio ha sido marcado como cancelado. Motivo: ${selectedReason}`,
             });
         } catch (error) {
-            console.error('Error cancelling study:', error);
             toast({
                 variant: 'destructive',
                 title: 'Error al Cancelar',
@@ -165,7 +163,6 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
             });
             setEditingStudy(null);
         } catch (error) {
-            console.error("Error updating study: ", error);
             toast({
                 variant: "destructive",
                 title: "Error al Guardar",
@@ -442,3 +439,5 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
         </>
     );
 }
+
+    
