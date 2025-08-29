@@ -1,8 +1,6 @@
+
 "use client"
 
-import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,28 +10,15 @@ import { MoreVertical, Search, CheckCircle, Clock, XCircle, Loader2 } from 'luci
 import { Card } from '../ui/card';
 import { cn } from "@/lib/utils";
 import { format } from 'date-fns';
+import { Study } from "@/lib/types";
 
-type Study = {
-    id: string;
-    status: string;
-    service: string;
-    patient: {
-        fullName: string;
-        id: string;
-        entidad: string;
-    };
-    studies: {
-        nombre: string;
-        cups: string;
-        modality: string;
-    }[];
-    requestDate: {
-        toDate: () => Date;
-    } | null;
-    completionDate: {
-        toDate: () => Date;
-    } | null;
+type StudyTableProps = {
+    studies: Study[];
+    loading: boolean;
+    searchTerm: string;
+    setSearchTerm: (term: string) => void;
 };
+
 
 const statusConfig = {
     'Pendiente': { icon: Clock, className: 'bg-yellow-100 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800/50 text-yellow-700 dark:text-yellow-300', iconClassName: 'text-yellow-600 dark:text-yellow-400', label: 'Pendiente' },
@@ -42,46 +27,8 @@ const statusConfig = {
     'Cancelado': { icon: XCircle, className: 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-300', iconClassName: 'text-red-600 dark:text-red-400', label: 'Cancelado' },
 };
 
-export function StudyTable() {
-    const [studies, setStudies] = useState<Study[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const q = query(collection(db, "studies"), orderBy("requestDate", "desc"));
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
-            const studiesData: Study[] = [];
-            querySnapshot.forEach((doc) => {
-                const data = doc.data();
-                const firstStudy = data.studies && data.studies.length > 0 ? data.studies[0] : {};
-
-                studiesData.push({
-                    id: doc.id,
-                    status: data.status || 'Pendiente',
-                    service: data.service || 'N/A',
-                    patient: {
-                        fullName: data.patient?.fullName || 'N/A',
-                        id: data.patient?.id || 'N/A',
-                        entidad: data.patient?.entidad || 'N/A',
-                    },
-                    studies: [{
-                        nombre: firstStudy.nombre || 'N/A',
-                        cups: firstStudy.cups || 'N/A',
-                        modality: (firstStudy.nombre?.slice(0, 3) || 'N/A').toUpperCase(),
-                    }],
-                    requestDate: data.requestDate,
-                    completionDate: data.completionDate,
-                });
-            });
-            setStudies(studiesData);
-            setLoading(false);
-        }, (error) => {
-            console.error("Error fetching studies: ", error);
-            setLoading(false);
-        });
-
-        return () => unsubscribe();
-    }, []);
-
+export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: StudyTableProps) {
+    
     const formatDate = (dateObj: { toDate: () => Date } | null) => {
         if (!dateObj) return 'N/A';
         try {
@@ -102,7 +49,12 @@ export function StudyTable() {
                             <TableHead className="align-middle p-2 min-w-[300px]">
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input placeholder="Buscar Paciente (Nombre / ID)" className="pl-10 h-9 bg-background" />
+                                    <Input 
+                                        placeholder="Buscar Paciente (Nombre / ID)" 
+                                        className="pl-10 h-9 bg-background"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
                                 </div>
                             </TableHead>
                             <TableHead className="font-bold p-2 min-w-[300px]">Estudio</TableHead>
@@ -123,7 +75,7 @@ export function StudyTable() {
                         ) : studies.length === 0 ? (
                              <TableRow>
                                 <TableCell colSpan={6} className="text-center p-8">
-                                    <p>No hay solicitudes pendientes.</p>
+                                    <p>No se encontraron solicitudes.</p>
                                 </TableCell>
                             </TableRow>
                         ) : (
