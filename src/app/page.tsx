@@ -52,7 +52,7 @@ export default function HomePage() {
             const modality = (firstStudy.nombre?.slice(0, 3) || 'N/A').toUpperCase();
             
             let service = (data.service || 'N/A').toUpperCase();
-            if (service === 'CEX') service = 'C. EXT';
+            if (service === 'C.EXT') service = 'C. EXT';
 
 
              studiesData.push({
@@ -69,6 +69,10 @@ export default function HomePage() {
                     cups: firstStudy.cups || 'N/A',
                     modality: modality,
                 }],
+                diagnosis: {
+                    code: data.diagnosis?.code || 'N/A',
+                    description: data.diagnosis?.description || 'N/A',
+                },
                 requestDate: data.requestDate,
                 completionDate: data.completionDate,
             });
@@ -241,5 +245,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    

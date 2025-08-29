@@ -13,6 +13,10 @@ export type Study = {
         cups: string;
         modality: string;
     }[];
+    diagnosis: {
+        code: string;
+        description: string;
+    };
     requestDate: {
         toDate: () => Date;
     } | null;
