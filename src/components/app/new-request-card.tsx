@@ -54,7 +54,7 @@ export function NewRequestCard() {
                     toast({
                         variant: "destructive",
                         title: "Error de Extracción",
-                        description: "No se pudo procesar el archivo. Intente de nuevo.",
+                        description: "No se pudo procesar el archivo. Revisa la consola para más detalles.",
                     });
                     console.error("Extraction error:", error);
                 } finally {
@@ -365,7 +365,3 @@ export function NewRequestCard() {
         </>
     );
 }
-
-    
-
-    
