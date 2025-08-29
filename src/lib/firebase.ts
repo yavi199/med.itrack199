@@ -4,12 +4,13 @@ import { getStorage } from "firebase/storage";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyAzT59oA9Ztq53X-9_k9-g_L_Y2P8pW5vM",
-    authDomain: "med-itrack199.firebaseapp.com",
-    projectId: "med-itrack199",
-    storageBucket: "med-itrack199.appspot.com",
-    messagingSenderId: "922998764855",
-    appId: "1:922998764855:web:e00583b4845014494c927f",
+  apiKey: "AIzaSyBI96qh9EbuO0h8F1MBAYKwOloCrxaf6rk",
+  authDomain: "med-itrack199.firebaseapp.com",
+  projectId: "med-itrack199",
+  storageBucket: "med-itrack199.appspot.com",
+  messagingSenderId: "324429977043",
+  appId: "1:324429977043:web:e3092fb39e1e04751bcb26",
+  measurementId: "G-C37WHTVBJ7"
 };
 
 // Initialize Firebase
