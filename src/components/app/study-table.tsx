@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreVertical, Search, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { Card } from '../ui/card';
+import { cn } from "@/lib/utils";
 
 const exampleRequests = [
   { id: '1', status: 'Completado', service: 'URG', patient: { name: 'GARCIA MARQUEZ, GABRIEL', id: '12345678', entidad: 'MUTUALSER' }, study: { name: 'TAC DE CRANEO SIMPLE', cups: '879101', modality: 'TAC' }, requestDate: '28 Ago, 14:30', completionDate: '28 Ago, 15:00' },
@@ -17,10 +18,10 @@ const exampleRequests = [
 ];
 
 const statusConfig = {
-    'Pendiente': { icon: Clock, color: 'yellow', label: 'Pendiente' },
-    'Completado': { icon: CheckCircle, color: 'green', label: 'Completado' },
-    'Leído': { icon: CheckCircle, color: 'blue', label: 'Leído' },
-    'Cancelado': { icon: XCircle, color: 'red', label: 'Cancelado' },
+    'Pendiente': { icon: Clock, className: 'bg-yellow-100 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800/50 text-yellow-700 dark:text-yellow-300', iconClassName: 'text-yellow-600 dark:text-yellow-400', label: 'Pendiente' },
+    'Completado': { icon: CheckCircle, className: 'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800/50 text-green-700 dark:text-green-300', iconClassName: 'text-green-600 dark:text-green-400', label: 'Completado' },
+    'Leído': { icon: CheckCircle, className: 'bg-blue-100 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800/50 text-blue-700 dark:text-blue-300', iconClassName: 'text-blue-600 dark:text-blue-400', label: 'Leído' },
+    'Cancelado': { icon: XCircle, className: 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-300', iconClassName: 'text-red-600 dark:text-red-400', label: 'Cancelado' },
 };
 
 export function StudyTable() {
@@ -45,13 +46,13 @@ export function StudyTable() {
           </TableHeader>
           <TableBody>
             {exampleRequests.map((req) => {
-              const { icon: Icon, color, label } = statusConfig[req.status as keyof typeof statusConfig] || statusConfig.Pendiente;
+              const { icon: Icon, className, iconClassName, label } = statusConfig[req.status as keyof typeof statusConfig] || statusConfig.Pendiente;
               return (
               <TableRow key={req.id} className="text-sm">
                 <TableCell className="p-1 align-top h-full">
-                  <div className={`w-full h-full flex flex-col items-center justify-center gap-1 p-2 rounded-md bg-${color}-100 dark:bg-${color}-900/30 border border-${color}-200 dark:border-${color}-800/50`}>
-                    <Icon className={`h-5 w-5 text-${color}-600 dark:text-${color}-400`} />
-                    <p className={`text-[10px] font-bold text-${color}-700 dark:text-${color}-300`}>{label.toUpperCase()}</p>
+                  <div className={cn('w-full h-full flex flex-col items-center justify-center gap-1 p-2 rounded-md border', className)}>
+                    <Icon className={cn('h-5 w-5', iconClassName)} />
+                    <p className='text-[10px] font-bold'>{label.toUpperCase()}</p>
                   </div>
                 </TableCell>
                 <TableCell className="p-2 align-top text-center font-bold">{req.service}</TableCell>
