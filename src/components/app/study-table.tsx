@@ -21,10 +21,10 @@ type StudyTableProps = {
 
 
 const statusConfig = {
-    'Pendiente': { icon: Clock, className: 'bg-yellow-100 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800/50 text-yellow-700 dark:text-yellow-300', iconClassName: 'text-yellow-600 dark:text-yellow-400', label: 'Pendiente' },
+    'Pendiente': { icon: Clock, className: 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-300', iconClassName: 'text-red-600 dark:text-red-400', label: 'Pendiente' },
     'Completado': { icon: CheckCircle, className: 'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800/50 text-green-700 dark:text-green-300', iconClassName: 'text-green-600 dark:text-green-400', label: 'Completado' },
     'Leído': { icon: CheckCircle, className: 'bg-blue-100 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800/50 text-blue-700 dark:text-blue-300', iconClassName: 'text-blue-600 dark:text-blue-400', label: 'Leído' },
-    'Cancelado': { icon: XCircle, className: 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-300', iconClassName: 'text-red-600 dark:text-red-400', label: 'Cancelado' },
+    'Cancelado': { icon: XCircle, className: 'bg-orange-100 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800/50 text-orange-700 dark:text-orange-300', iconClassName: 'text-orange-600 dark:text-orange-400', label: 'Cancelado' },
 };
 
 export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: StudyTableProps) {
