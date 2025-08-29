@@ -63,6 +63,7 @@ export default function HomePage() {
                     id: data.patient?.id || 'N/A',
                     entidad: data.patient?.entidad || 'N/A',
                     birthDate: data.patient?.birthDate,
+                    sex: data.patient?.sex
                 },
                 studies: [{
                     nombre: firstStudy.nombre || 'N/A',
@@ -164,8 +165,8 @@ export default function HomePage() {
     <button
       onClick={onClick}
       className={cn(
-        'bg-muted/50 p-4 rounded-lg text-center transition-all duration-200 border-2 shadow-lg shadow-primary/20',
-        isActive ? 'border-primary bg-primary/10' : 'border-transparent hover:bg-muted',
+        'bg-card p-4 rounded-lg text-center transition-all duration-200 border-2 shadow-lg',
+        isActive ? 'border-primary bg-primary/10' : 'border-transparent hover:border-primary',
         className
       )}
     >
