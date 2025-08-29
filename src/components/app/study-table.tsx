@@ -268,14 +268,14 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
                                                 <div className="text-muted-foreground uppercase text-xs truncate">
                                                     ID: {req.patient.id} | {req.patient.entidad}
                                                 </div>
-                                                <div className="text-muted-foreground uppercase text-xs">
+                                                <div className="text-muted-foreground uppercase text-xs truncate">
                                                      {req.patient.birthDate} {age}
+                                                     {req.cancellationReason && (
+                                                        <span className="text-orange-500 font-semibold ml-2">
+                                                            ({req.cancellationReason.toUpperCase()})
+                                                        </span>
+                                                    )}
                                                 </div>
-                                                {req.cancellationReason && (
-                                                    <div className="text-orange-500 font-semibold text-xs mt-1">
-                                                        ({req.cancellationReason})
-                                                    </div>
-                                                )}
                                             </TableCell>
                                             <TableCell className="p-2 align-top">
                                                 <div className="flex items-start gap-3">
@@ -442,8 +442,3 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
         </>
     );
 }
-
-    
-    
-
-    
