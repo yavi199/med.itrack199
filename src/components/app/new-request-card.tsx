@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -23,7 +24,8 @@ import { Label } from '../ui/label';
 
 export function NewRequestCard() {
     const [dragging, setDragging] = useState(false);
-    const [loading, setLoading] = useState(false);
+    const [isExtracting, setIsExtracting] = useState(false);
+    const [isCreating, setIsCreating] = useState(false);
     const [extractedData, setExtractedData] = useState<ExtractOrderOutput | null>(null);
     const [showManualEntry, setShowManualEntry] = useState(false);
     const [patientId, setPatientId] = useState('');
@@ -40,7 +42,7 @@ export function NewRequestCard() {
                 });
                 return;
             }
-            setLoading(true);
+            setIsExtracting(true);
 
             const reader = new FileReader();
             reader.onload = async (e) => {
@@ -56,7 +58,7 @@ export function NewRequestCard() {
                     });
                     console.error("Extraction error:", error);
                 } finally {
-                    setLoading(false);
+                    setIsExtracting(false);
                 }
             };
             reader.readAsDataURL(file);
@@ -91,7 +93,7 @@ export function NewRequestCard() {
     const handleCreateRequest = async (dataToSave: ExtractOrderOutput | null) => {
         if (!dataToSave) return;
 
-        setLoading(true);
+        setIsCreating(true);
         try {
             // Ensure data is plain objects for Firestore
             const studyData = {
@@ -123,7 +125,7 @@ export function NewRequestCard() {
                 description: "No se pudo guardar la solicitud en la base de datos.",
             });
         } finally {
-            setLoading(false);
+            setIsCreating(false);
         }
     };
 
@@ -138,7 +140,7 @@ export function NewRequestCard() {
         }
     };
 
-    const handleManualSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleManualSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
         const data: ExtractOrderOutput = {
@@ -169,7 +171,7 @@ export function NewRequestCard() {
                 admissionNumber: formData.get('admissionNumber') as string,
             }
         };
-        handleCreateRequest(data);
+        await handleCreateRequest(data);
     };
 
     const handleIdInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -192,7 +194,7 @@ export function NewRequestCard() {
                         className="hidden"
                         onChange={(e) => handleFileChange(e.target.files)}
                         accept="image/*,application/pdf"
-                        disabled={loading}
+                        disabled={isExtracting || isCreating}
                     />
                     <label
                         htmlFor="file-upload"
@@ -202,12 +204,12 @@ export function NewRequestCard() {
                         onDrop={handleDrop}
                         className={cn(
                             "border-2 border-dashed rounded-lg p-6 text-center flex flex-col items-center justify-center h-full w-full bg-primary/10 border-primary/40 transition-colors",
-                            !loading && "cursor-pointer hover:border-primary",
+                            !(isExtracting || isCreating) && "cursor-pointer hover:border-primary",
                             dragging && "border-primary bg-primary/20"
                         )}
                     >
                         <div className="flex flex-col items-center justify-center gap-2 text-primary-foreground">
-                            {loading && !extractedData && !showManualEntry ? (
+                            {isExtracting ? (
                                 <>
                                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                     <p className="text-sm font-semibold text-foreground">Procesando...</p>
@@ -229,14 +231,14 @@ export function NewRequestCard() {
                             value={patientId}
                             onChange={(e) => setPatientId(e.target.value)}
                             onKeyDown={handleIdInputKeyDown}
-                            disabled={loading}
+                            disabled={isExtracting || isCreating}
                             suppressHydrationWarning
                         />
                     </div>
                 </CardContent>
             </Card>
 
-            <AlertDialog open={!!extractedData} onOpenChange={(open) => !open && setExtractedData(null)}>
+            <AlertDialog open={!!extractedData} onOpenChange={(open) => {if (!open && !isCreating) setExtractedData(null)}}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Orden Procesada Exitosamente</AlertDialogTitle>
@@ -246,8 +248,8 @@ export function NewRequestCard() {
                     </AlertDialogHeader>
                     <AlertDialogFooter className="sm:justify-between gap-2">
                         <Button variant="outline" onClick={handleGenerateAuthorization}>Generar Autorización PDF</Button>
-                        <Button onClick={() => handleCreateRequest(extractedData)} disabled={loading}>
-                            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <Button onClick={() => handleCreateRequest(extractedData)} disabled={isCreating}>
+                            {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Crear Solicitud
                         </Button>
                     </AlertDialogFooter>
@@ -351,9 +353,9 @@ export function NewRequestCard() {
                             </div>
                         </div>
                         <AlertDialogFooter>
-                            <Button type="button" variant="outline" onClick={() => { setShowManualEntry(false); setPatientId(''); }} disabled={loading}>Cancelar</Button>
-                            <Button type="submit" disabled={loading}>
-                                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            <Button type="button" variant="outline" onClick={() => { setShowManualEntry(false); setPatientId(''); }} disabled={isCreating}>Cancelar</Button>
+                            <Button type="submit" disabled={isCreating}>
+                                {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Crear Solicitud
                             </Button>
                         </AlertDialogFooter>
