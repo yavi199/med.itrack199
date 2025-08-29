@@ -89,7 +89,7 @@ export function NewRequestCard() {
         handleFileChange(files);
     };
 
-    const handleCreateRequest = async (data?: ExtractOrderOutput) => {
+    const handleCreateRequest = async (data?: Partial<ExtractOrderOutput>) => {
         const dataToSave = data || extractedData;
         if (!dataToSave) return;
     
@@ -109,10 +109,11 @@ export function NewRequestCard() {
 
             toast({
                 title: "Solicitud Creada",
-                description: `Solicitud para ${dataToSave.patient.fullName} ha sido creada con el ID: ${docRef.id}.`,
+                description: `Solicitud para ${dataToSave.patient?.fullName} ha sido creada con el ID: ${docRef.id}.`,
             });
             setExtractedData(null);
             setManualEntryData(null);
+            setPatientId('');
         } catch (error) {
             console.error("Error creating request: ", error);
             toast({
@@ -240,13 +241,13 @@ export function NewRequestCard() {
 
             <AlertDialog open={!!manualEntryData} onOpenChange={(open) => !open && setManualEntryData(null)}>
                 <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Crear Solicitud Manual</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Ingrese los detalles para el paciente con ID: <span className="font-bold">{patientId}</span>
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
                     <form onSubmit={handleManualSubmit}>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Crear Solicitud Manual</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Ingrese los detalles para el paciente con ID: <span className="font-bold">{patientId}</span>
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
                         <div className="grid gap-4 py-4">
                             <h3 className="font-semibold text-sm">Datos del Paciente</h3>
                             <div className="grid grid-cols-2 gap-4">
