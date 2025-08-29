@@ -165,8 +165,8 @@ export default function HomePage() {
     <button
       onClick={onClick}
       className={cn(
-        'bg-card p-4 rounded-lg text-center transition-all duration-200 border-2 shadow-lg',
-        isActive ? 'border-primary bg-primary/10' : 'border-transparent hover:border-primary',
+        'bg-card p-4 rounded-lg text-center transition-all duration-200 border-2 shadow-lg border-border',
+        isActive ? 'border-primary bg-primary/10' : 'hover:border-primary',
         className
       )}
     >
