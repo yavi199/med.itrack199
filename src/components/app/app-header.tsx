@@ -28,7 +28,7 @@ export function AppHeader() {
                 Med-iTrack
               </h1>
               <p className="text-xs text-muted-foreground font-medium tracking-wide">
-                Project ID: <span className="font-bold text-primary">{firebaseConfig.projectId}</span>
+                Precision you can trace.
               </p>
             </div>
           </div>
