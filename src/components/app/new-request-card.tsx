@@ -9,7 +9,6 @@ import { extractOrder, ExtractOrderOutput } from '@/ai/flows/extract-order-flow'
 import { cn } from '@/lib/utils';
 import {
     AlertDialog,
-    AlertDialogAction,
     AlertDialogContent,
     AlertDialogDescription,
     AlertDialogFooter,
@@ -89,7 +88,7 @@ export function NewRequestCard() {
         handleFileChange(files);
     };
 
-    const handleCreateRequest = async (dataToSave: ExtractOrderOutput) => {
+    const handleCreateRequest = async (dataToSave: ExtractOrderOutput | null) => {
         if (!dataToSave) return;
     
         setLoading(true);
@@ -98,6 +97,8 @@ export function NewRequestCard() {
                 patient: dataToSave.patient,
                 studies: dataToSave.studies,
                 diagnosis: dataToSave.diagnosis,
+                physician: dataToSave.physician,
+                order: dataToSave.order,
                 status: 'Pendiente',
                 requestDate: serverTimestamp(),
                 completionDate: null,
@@ -131,6 +132,7 @@ export function NewRequestCard() {
                 title: "Generando Autorización",
                 description: `Se está generando la autorización para ${extractedData.patient.fullName}.`,
             });
+            // Logic to generate PDF will be added here
             setExtractedData(null);
         }
     };
@@ -140,18 +142,30 @@ export function NewRequestCard() {
         const formData = new FormData(e.currentTarget);
         const data: ExtractOrderOutput = {
             patient: {
-                id: patientId,
+                id: formData.get('patientId') as string,
                 fullName: formData.get('fullName') as string,
                 birthDate: formData.get('birthDate') as string,
+                sex: formData.get('sex') as string,
                 entidad: formData.get('entidad') as string,
             },
             studies: [{
                 cups: formData.get('cups') as string,
                 nombre: formData.get('studyName') as string,
+                details: formData.get('studyDetails') as string,
             }],
             diagnosis: {
                 code: formData.get('cie10') as string,
                 description: formData.get('diagnosisDescription') as string,
+            },
+            physician: {
+                fullName: formData.get('physicianName') as string,
+                registryNumber: formData.get('physicianRegistry') as string,
+                specialty: formData.get('physicianSpecialty') as string,
+            },
+            order: {
+                date: formData.get('orderDate') as string,
+                institutionName: formData.get('institutionName') as string,
+                admissionNumber: formData.get('admissionNumber') as string,
             }
         };
         handleCreateRequest(data);
@@ -192,7 +206,7 @@ export function NewRequestCard() {
                         )}
                     >
                         <div className="flex flex-col items-center justify-center gap-2 text-primary-foreground">
-                            {loading && !showManualEntry ? (
+                            {loading && !extractedData && !showManualEntry ? (
                                 <>
                                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                     <p className="text-sm font-semibold text-foreground">Procesando...</p>
@@ -215,6 +229,7 @@ export function NewRequestCard() {
                             onChange={(e) => setPatientId(e.target.value)}
                             onKeyDown={handleIdInputKeyDown}
                             disabled={loading}
+                            suppressHydrationWarning
                         />
                     </div>
                 </CardContent>
@@ -230,7 +245,7 @@ export function NewRequestCard() {
                     </AlertDialogHeader>
                     <AlertDialogFooter className="sm:justify-between gap-2">
                         <Button variant="outline" onClick={handleGenerateAuthorization}>Generar Autorización PDF</Button>
-                        <Button onClick={() => extractedData && handleCreateRequest(extractedData)} disabled={loading}>
+                        <Button onClick={() => handleCreateRequest(extractedData)} disabled={loading}>
                             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Crear Solicitud
                         </Button>
@@ -239,7 +254,7 @@ export function NewRequestCard() {
             </AlertDialog>
 
             <AlertDialog open={showManualEntry} onOpenChange={(open) => { if (!open) { setShowManualEntry(false); setPatientId(''); } }}>
-                <AlertDialogContent>
+                <AlertDialogContent className="max-h-[90vh] overflow-y-auto">
                     <form onSubmit={handleManualSubmit}>
                         <AlertDialogHeader>
                             <AlertDialogTitle>Crear Solicitud Manual</AlertDialogTitle>
@@ -248,7 +263,11 @@ export function NewRequestCard() {
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <div className="grid gap-4 py-4">
-                            <h3 className="font-semibold text-sm">Datos del Paciente</h3>
+                             <h3 className="font-semibold text-sm">Datos del Paciente</h3>
+                             <div className="space-y-2">
+                                <Label htmlFor="patientId">Documento del Paciente</Label>
+                                <Input id="patientId" name="patientId" defaultValue={patientId} required />
+                            </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="fullName">Nombre Completo</Label>
@@ -259,10 +278,33 @@ export function NewRequestCard() {
                                     <Input id="birthDate" name="birthDate" type="date" required />
                                 </div>
                             </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="entidad">Entidad/Aseguradora</Label>
-                                <Input id="entidad" name="entidad" required />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="sex">Sexo</Label>
+                                    <Input id="sex" name="sex" required />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="entidad">Entidad/Aseguradora</Label>
+                                    <Input id="entidad" name="entidad" required />
+                                </div>
                             </div>
+
+                            <h3 className="font-semibold text-sm pt-4">Datos de la Orden</h3>
+                             <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="orderDate">Fecha de la Orden</Label>
+                                    <Input id="orderDate" name="orderDate" type="date" required />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="institutionName">Institución</Label>
+                                    <Input id="institutionName" name="institutionName" required />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="admissionNumber">Número de Admisión</Label>
+                                <Input id="admissionNumber" name="admissionNumber" />
+                            </div>
+                            
                             <h3 className="font-semibold text-sm pt-4">Datos del Estudio</h3>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -274,6 +316,11 @@ export function NewRequestCard() {
                                     <Input id="studyName" name="studyName" required />
                                 </div>
                             </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="studyDetails">Detalles del Estudio</Label>
+                                <Input id="studyDetails" name="studyDetails" />
+                            </div>
+
                              <h3 className="font-semibold text-sm pt-4">Datos del Diagnóstico</h3>
                              <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -285,9 +332,25 @@ export function NewRequestCard() {
                                     <Input id="diagnosisDescription" name="diagnosisDescription" required />
                                 </div>
                             </div>
+
+                             <h3 className="font-semibold text-sm pt-4">Datos del Médico</h3>
+                             <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="physicianName">Nombre del Médico</Label>
+                                    <Input id="physicianName" name="physicianName" required />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="physicianRegistry">Registro Médico</Label>
+                                    <Input id="physicianRegistry" name="physicianRegistry" required />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="physicianSpecialty">Especialidad</Label>
+                                <Input id="physicianSpecialty" name="physicianSpecialty" required />
+                            </div>
                         </div>
                         <AlertDialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setShowManualEntry(false)}>Cancelar</Button>
+                            <Button type="button" variant="outline" onClick={() => { setShowManualEntry(false); setPatientId(''); }} disabled={loading}>Cancelar</Button>
                             <Button type="submit" disabled={loading}>
                                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Crear Solicitud
