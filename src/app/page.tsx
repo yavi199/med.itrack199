@@ -21,9 +21,9 @@ type Summary = {
 
 type ServiceSummary = {
     URG: number;
-    HOS: number;
+    HOSP: number;
     UCI: number;
-    CEX: number;
+    'C. EXT': number;
 }
 
 type ActiveFilters = {
@@ -33,7 +33,7 @@ type ActiveFilters = {
 
 export default function HomePage() {
   const [summary, setSummary] = useState<Summary>({ ECO: 0, RX: 0, TAC: 0, RMN: 0 });
-  const [serviceSummary, setServiceSummary] = useState<ServiceSummary>({ URG: 0, HOS: 0, UCI: 0, CEX: 0 });
+  const [serviceSummary, setServiceSummary] = useState<ServiceSummary>({ URG: 0, HOSP: 0, UCI: 0, 'C. EXT': 0 });
   const [studies, setStudies] = useState<Study[]>([]);
   const [filteredStudies, setFilteredStudies] = useState<Study[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,13 +44,16 @@ export default function HomePage() {
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const studiesData: Study[] = [];
         const newSummary: Summary = { ECO: 0, RX: 0, TAC: 0, RMN: 0 };
-        const newServiceSummary: ServiceSummary = { URG: 0, HOS: 0, UCI: 0, CEX: 0 };
+        const newServiceSummary: ServiceSummary = { URG: 0, HOSP: 0, UCI: 0, 'C. EXT': 0 };
         
         querySnapshot.forEach((doc) => {
             const data = doc.data();
             const firstStudy = data.studies && data.studies.length > 0 ? data.studies[0] : {};
             const modality = (firstStudy.nombre?.slice(0, 3) || 'N/A').toUpperCase();
-            const service = (data.service || 'N/A').toUpperCase();
+            
+            let service = (data.service || 'N/A').toUpperCase();
+            if (service === 'CEX') service = 'C. EXT';
+
 
              studiesData.push({
                 id: doc.id,
@@ -114,6 +117,41 @@ export default function HomePage() {
     }
     
     setFilteredStudies(filteredData);
+    
+    // Recalculate summary counts based on current filters
+    const newSummary: Summary = { ECO: 0, RX: 0, TAC: 0, RMN: 0 };
+    const newServiceSummary: ServiceSummary = { URG: 0, HOSP: 0, UCI: 0, 'C. EXT': 0 };
+
+    filteredData.forEach(study => {
+        const modality = study.studies[0].modality;
+        if (modality in newSummary) {
+            newSummary[modality as keyof Summary]++;
+        }
+        const service = study.service;
+        if (service in newServiceSummary) {
+            newServiceSummary[service as keyof ServiceSummary]++;
+        }
+    });
+
+    // Only update summaries if there are no filters to keep total counts visible
+    if(activeFilters.modalities.length === 0 && activeFilters.services.length === 0 && !searchTerm) {
+        const totalSummary: Summary = { ECO: 0, RX: 0, TAC: 0, RMN: 0 };
+        const totalServiceSummary: ServiceSummary = { URG: 0, HOSP: 0, UCI: 0, 'C. EXT': 0 };
+         studies.forEach(study => {
+            const modality = study.studies[0].modality;
+            if (modality in totalSummary) {
+                totalSummary[modality as keyof Summary]++;
+            }
+            const service = study.service;
+            if (service in totalServiceSummary) {
+                totalServiceSummary[service as keyof ServiceSummary]++;
+            }
+        });
+        setSummary(totalSummary);
+        setServiceSummary(totalServiceSummary);
+    }
+
+
   }, [searchTerm, studies, activeFilters]);
 
   const toggleFilter = (type: 'modalities' | 'services', value: string) => {
@@ -181,7 +219,7 @@ export default function HomePage() {
                {Object.entries(serviceSummary).map(([key, value]) => (
                 <FilterButton
                     key={key}
-                    label={key === 'CEX' ? 'C. Externa' : key}
+                    label={key}
                     count={value}
                     isActive={activeFilters.services.includes(key)}
                     onClick={() => toggleFilter('services', key)}
@@ -203,3 +241,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    
