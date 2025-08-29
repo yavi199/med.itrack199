@@ -21,7 +21,7 @@ import { Card } from '../ui/card';
 import { cn } from "@/lib/utils";
 import { format, differenceInYears } from 'date-fns';
 import { Study } from "@/lib/types";
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, deleteField } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -83,6 +83,7 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
             }
              if (newStatus === 'Pendiente') {
                 updateData.completionDate = null;
+                updateData.cancellationReason = deleteField();
             }
 
             await updateDoc(studyRef, updateData);
@@ -443,4 +444,6 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
 }
 
     
+    
+
     
