@@ -244,7 +244,6 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
                                     const { icon: Icon, className, iconClassName, label } = statusConfig[req.status as keyof typeof statusConfig] || statusConfig.Pendiente;
                                     const study = req.studies[0];
                                     const age = getAge(req.patient.birthDate);
-                                    const fullPatientInfo = `ID: ${req.patient.id} | ${req.patient.entidad} | ${req.patient.birthDate} (${age})`;
                                     
                                     return (
                                         <TableRow key={req.id} className="text-sm">
@@ -264,11 +263,18 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
                                             </TableCell>
                                             <TableCell className="p-2 align-top text-center font-bold">{req.service}</TableCell>
                                             <TableCell className="p-2 align-top max-w-[300px]">
-                                                <div className="font-bold uppercase text-sm truncate">{req.patient.fullName}</div>
+                                                <div className="font-bold uppercase text-sm">{req.patient.fullName}</div>
                                                 <div className="text-muted-foreground uppercase text-xs truncate">
-                                                    {fullPatientInfo}
-                                                    {req.cancellationReason && <span className="text-orange-500 font-semibold ml-2">({req.cancellationReason})</span>}
+                                                    ID: {req.patient.id} | {req.patient.entidad}
                                                 </div>
+                                                <div className="text-muted-foreground uppercase text-xs">
+                                                     {req.patient.birthDate} ({age})
+                                                </div>
+                                                {req.cancellationReason && (
+                                                    <div className="text-orange-500 font-semibold text-xs mt-1">
+                                                        ({req.cancellationReason})
+                                                    </div>
+                                                )}
                                             </TableCell>
                                             <TableCell className="p-2 align-top">
                                                 <div className="flex items-start gap-3">
@@ -436,4 +442,5 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
     );
 }
 
+    
     
