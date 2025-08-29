@@ -6,7 +6,7 @@ import { AppHeader } from "@/components/app/app-header";
 import { NewRequestCard } from "@/components/app/new-request-card";
 import { StudyTable } from "@/components/app/study-table";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Study } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -40,11 +40,9 @@ export default function HomePage() {
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({ modalities: [], services: [] });
 
   useEffect(() => {
-    const q = query(collection(db, "studies"), where("status", "==", "Pendiente"));
+    const q = query(collection(db, "studies"), orderBy("requestDate", "desc"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const studiesData: Study[] = [];
-        const newSummary: Summary = { ECO: 0, RX: 0, TAC: 0, RMN: 0 };
-        const newServiceSummary: ServiceSummary = { URG: 0, HOSP: 0, UCI: 0, 'C. EXT': 0 };
         
         querySnapshot.forEach((doc) => {
             const data = doc.data();
@@ -76,14 +74,6 @@ export default function HomePage() {
                 requestDate: data.requestDate,
                 completionDate: data.completionDate,
             });
-
-            // Calculate summaries
-            if (modality in newSummary) {
-                newSummary[modality as keyof Summary]++;
-            }
-             if (service in newServiceSummary) {
-                newServiceSummary[service as keyof ServiceSummary]++;
-            }
         });
 
         setStudies(studiesData);
@@ -122,11 +112,12 @@ export default function HomePage() {
     
     setFilteredStudies(filteredData);
     
-    // Recalculate summary counts based on current filters
+    // Recalculate summary counts for pending studies
+    const pendingStudies = studies.filter(s => s.status === 'Pendiente');
     const newSummary: Summary = { ECO: 0, RX: 0, TAC: 0, RMN: 0 };
     const newServiceSummary: ServiceSummary = { URG: 0, HOSP: 0, UCI: 0, 'C. EXT': 0 };
 
-    filteredData.forEach(study => {
+    pendingStudies.forEach(study => {
         const modality = study.studies[0].modality;
         if (modality in newSummary) {
             newSummary[modality as keyof Summary]++;
@@ -136,24 +127,9 @@ export default function HomePage() {
             newServiceSummary[service as keyof ServiceSummary]++;
         }
     });
-
-    // Only update summaries if there are no filters to keep total counts visible
-    if(activeFilters.modalities.length === 0 && activeFilters.services.length === 0 && !searchTerm) {
-        const totalSummary: Summary = { ECO: 0, RX: 0, TAC: 0, RMN: 0 };
-        const totalServiceSummary: ServiceSummary = { URG: 0, HOSP: 0, UCI: 0, 'C. EXT': 0 };
-         studies.forEach(study => {
-            const modality = study.studies[0].modality;
-            if (modality in totalSummary) {
-                totalSummary[modality as keyof Summary]++;
-            }
-            const service = study.service;
-            if (service in totalServiceSummary) {
-                totalServiceSummary[service as keyof ServiceSummary]++;
-            }
-        });
-        setSummary(totalSummary);
-        setServiceSummary(totalServiceSummary);
-    }
+    
+    setSummary(newSummary);
+    setServiceSummary(newServiceSummary);
 
 
   }, [searchTerm, studies, activeFilters]);
