@@ -6,7 +6,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuItem, 
+    DropdownMenuTrigger,
+    DropdownMenuSub,
+    DropdownMenuSubTrigger,
+    DropdownMenuPortal,
+    DropdownMenuSubContent,
+} from "@/components/ui/dropdown-menu";
 import { MoreVertical, Search, CheckCircle, Clock, XCircle, Loader2 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { cn } from "@/lib/utils";
@@ -21,6 +30,7 @@ import {
     AlertDialogCancel,
     AlertDialogContent,
     AlertDialogDescription,
+    AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
     AlertDialogTrigger,
@@ -53,21 +63,33 @@ const cancellationReasons = [
 export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: StudyTableProps) {
     
     const { toast } = useToast();
+    const [isUpdating, setIsUpdating] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
     const [selectedReason, setSelectedReason] = useState(cancellationReasons[0]);
+    const [editingStudy, setEditingStudy] = useState<Study | null>(null);
 
-    const handleStatusChange = async (studyId: string, currentStatus: string) => {
+    const handleQuickStatusChange = async (studyId: string, currentStatus: string) => {
         if (currentStatus !== 'Pendiente') return;
+        handleStatusChange(studyId, 'Completado');
+    };
 
+    const handleStatusChange = async (studyId: string, newStatus: string) => {
+        setIsUpdating(true);
         const studyRef = doc(db, "studies", studyId);
         try {
-            await updateDoc(studyRef, {
-                status: 'Completado',
-                completionDate: serverTimestamp()
-            });
+            const updateData: any = { status: newStatus };
+            if (newStatus === 'Completado' || newStatus === 'Cancelado') {
+                updateData.completionDate = serverTimestamp();
+            }
+             if (newStatus === 'Pendiente') {
+                updateData.completionDate = null;
+            }
+
+            await updateDoc(studyRef, updateData);
+
             toast({
                 title: "Estudio Actualizado",
-                description: "El estado del estudio se ha cambiado a Completado.",
+                description: `El estado del estudio se ha cambiado a ${newStatus}.`,
             });
         } catch (error) {
             console.error("Error updating study status: ", error);
@@ -76,6 +98,8 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
                 title: "Error al Actualizar",
                 description: "No se pudo cambiar el estado del estudio.",
             });
+        } finally {
+            setIsUpdating(false);
         }
     };
     
@@ -104,6 +128,54 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
         }
     };
 
+    const handleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!editingStudy) return;
+
+        setIsUpdating(true);
+        const formData = new FormData(e.currentTarget);
+        const studyData = {
+            patient: {
+                id: formData.get('patientId') as string,
+                fullName: formData.get('fullName') as string,
+                birthDate: formData.get('birthDate') as string,
+                sex: formData.get('sex') as string,
+                entidad: formData.get('entidad') as string,
+            },
+            studies: [{
+                cups: formData.get('cups') as string,
+                nombre: formData.get('studyName') as string,
+                details: formData.get('studyDetails') as string,
+                // modality is derived from name, so it will update automatically on next load
+            }],
+            diagnosis: {
+                code: formData.get('cie10') as string,
+                description: formData.get('diagnosisDescription') as string,
+            },
+            service: formData.get('service') as string,
+        };
+
+        const studyRef = doc(db, "studies", editingStudy.id);
+        try {
+            await updateDoc(studyRef, studyData);
+            toast({
+                title: "Estudio Actualizado",
+                description: "Los datos del estudio se han guardado correctamente.",
+            });
+            setEditingStudy(null);
+        } catch (error) {
+            console.error("Error updating study: ", error);
+            toast({
+                variant: "destructive",
+                title: "Error al Guardar",
+                description: "No se pudieron guardar los cambios.",
+            });
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+
     const formatDate = (dateObj: { toDate: () => Date } | null) => {
         if (!dateObj) return 'N/A';
         try {
@@ -127,139 +199,240 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
 
 
     return (
-        <Card className="shadow-lg border-border">
-            <div className="overflow-x-auto">
-                <Table>
-                    <TableHeader className="bg-muted/50">
-                        <TableRow>
-                            <TableHead className="text-center font-bold p-2" style={{ width: '100px' }}>Estado</TableHead>
-                            <TableHead className="text-center font-bold p-2" style={{ width: '85px' }}>Servicio</TableHead>
-                            <TableHead className="align-middle p-2 min-w-[300px]">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input 
-                                        placeholder="Buscar Paciente (Nombre / ID)" 
-                                        className="pl-10 h-9 bg-background"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
-                                </div>
-                            </TableHead>
-                            <TableHead className="font-bold p-2 min-w-[300px]">Estudio</TableHead>
-                            <TableHead className="text-center font-bold p-2" style={{ width: '120px' }}>Fecha</TableHead>
-                            <TableHead className="p-2" style={{ width: '40px' }}></TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {loading ? (
+        <>
+            <Card className="shadow-lg border-border">
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader className="bg-muted/50">
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center p-8">
-                                    <div className="flex justify-center items-center gap-2">
-                                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                                        <p>Cargando estudios...</p>
+                                <TableHead className="text-center font-bold p-2" style={{ width: '100px' }}>Estado</TableHead>
+                                <TableHead className="text-center font-bold p-2" style={{ width: '85px' }}>Servicio</TableHead>
+                                <TableHead className="align-middle p-2 min-w-[300px]">
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input 
+                                            placeholder="Buscar Paciente (Nombre / ID)" 
+                                            className="pl-10 h-9 bg-background"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
                                     </div>
-                                </TableCell>
+                                </TableHead>
+                                <TableHead className="font-bold p-2 min-w-[300px]">Estudio</TableHead>
+                                <TableHead className="text-center font-bold p-2" style={{ width: '120px' }}>Fecha</TableHead>
+                                <TableHead className="p-2" style={{ width: '40px' }}></TableHead>
                             </TableRow>
-                        ) : studies.length === 0 ? (
-                             <TableRow>
-                                <TableCell colSpan={6} className="text-center p-8">
-                                    <p>No se encontraron solicitudes.</p>
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            studies.map((req) => {
-                                const { icon: Icon, className, iconClassName, label } = statusConfig[req.status as keyof typeof statusConfig] || statusConfig.Pendiente;
-                                const study = req.studies[0];
-                                const age = getAge(req.patient.birthDate);
-                                return (
-                                    <TableRow key={req.id} className="text-sm">
-                                        <TableCell className="p-1 align-top h-full">
-                                            <button 
-                                                onClick={() => handleStatusChange(req.id, req.status)}
-                                                disabled={req.status !== 'Pendiente'}
-                                                className={cn(
-                                                    'w-full h-full flex flex-col items-center justify-center gap-1 p-2 rounded-md border transition-colors',
-                                                     className,
-                                                     req.status === 'Pendiente' && 'hover:bg-opacity-80'
-                                                )}
-                                            >
-                                                <Icon className={cn('h-5 w-5', iconClassName)} />
-                                                <p className='text-[10px] font-bold'>{label.toUpperCase()}</p>
-                                            </button>
-                                        </TableCell>
-                                        <TableCell className="p-2 align-top text-center font-bold">{req.service}</TableCell>
-                                        <TableCell className="p-2 align-top max-w-[300px]">
-                                            <div className="font-bold uppercase text-sm truncate">{req.patient.fullName}</div>
-                                            <div className="text-muted-foreground uppercase text-xs truncate">
-                                                ID: {req.patient.id} | {req.patient.entidad} | {req.patient.birthDate} ({age})
-                                                {req.cancellationReason && <span className="text-orange-500 font-semibold ml-2">({req.cancellationReason})</span>}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="p-2 align-top">
-                                            <div className="flex items-start gap-3">
-                                                <Badge variant="outline" className="flex items-center justify-center w-12 h-10 border-2 font-semibold rounded-md text-sm">{study.modality}</Badge>
-                                                <div>
-                                                    <div className="font-bold uppercase text-sm leading-tight">{study.nombre}</div>
-                                                    <div className="text-muted-foreground text-xs font-medium">
-                                                        <span>CUPS: {study.cups}</span>
-                                                        <span className="text-blue-600 dark:text-blue-400 font-semibold ml-2">DX: {req.diagnosis.code} - {req.diagnosis.description}</span>
+                        </TableHeader>
+                        <TableBody>
+                            {loading ? (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center p-8">
+                                        <div className="flex justify-center items-center gap-2">
+                                            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                                            <p>Cargando estudios...</p>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ) : studies.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center p-8">
+                                        <p>No se encontraron solicitudes.</p>
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                studies.map((req) => {
+                                    const { icon: Icon, className, iconClassName, label } = statusConfig[req.status as keyof typeof statusConfig] || statusConfig.Pendiente;
+                                    const study = req.studies[0];
+                                    const age = getAge(req.patient.birthDate);
+                                    const fullPatientInfo = `ID: ${req.patient.id} | ${req.patient.entidad} | ${req.patient.birthDate} (${age})`;
+                                    
+                                    return (
+                                        <TableRow key={req.id} className="text-sm">
+                                            <TableCell className="p-1 align-top h-full">
+                                                <button 
+                                                    onClick={() => handleQuickStatusChange(req.id, req.status)}
+                                                    disabled={req.status !== 'Pendiente' || isUpdating}
+                                                    className={cn(
+                                                        'w-full h-full flex flex-col items-center justify-center gap-1 p-2 rounded-md border transition-colors',
+                                                        className,
+                                                        req.status === 'Pendiente' && 'hover:bg-opacity-80'
+                                                    )}
+                                                >
+                                                    <Icon className={cn('h-5 w-5', iconClassName)} />
+                                                    <p className='text-[10px] font-bold'>{label.toUpperCase()}</p>
+                                                </button>
+                                            </TableCell>
+                                            <TableCell className="p-2 align-top text-center font-bold">{req.service}</TableCell>
+                                            <TableCell className="p-2 align-top max-w-[300px]">
+                                                <div className="font-bold uppercase text-sm truncate">{req.patient.fullName}</div>
+                                                <div className="text-muted-foreground uppercase text-xs truncate">
+                                                    {fullPatientInfo}
+                                                    {req.cancellationReason && <span className="text-orange-500 font-semibold ml-2">({req.cancellationReason})</span>}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="p-2 align-top">
+                                                <div className="flex items-start gap-3">
+                                                    <Badge variant="outline" className="flex items-center justify-center w-12 h-10 border-2 font-semibold rounded-md text-sm">{study.modality}</Badge>
+                                                    <div>
+                                                        <div className="font-bold uppercase text-sm leading-tight">{study.nombre}</div>
+                                                        <div className="text-muted-foreground text-xs font-medium">
+                                                            <span>CUPS: {study.cups}</span>
+                                                            <span className="text-blue-600 dark:text-blue-400 font-semibold ml-2">DX: {req.diagnosis.code} - {req.diagnosis.description}</span>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="p-2 align-top text-center text-xs space-y-1">
-                                            <div className="font-medium text-red-600">{formatDate(req.requestDate)}</div>
-                                            <div className="font-medium text-green-600">{formatDate(req.completionDate)}</div>
-                                        </TableCell>
-                                        <TableCell className="p-1 text-right align-top">
-                                            <AlertDialog>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem>Editar</DropdownMenuItem>
-                                                        <AlertDialogTrigger asChild>
-                                                            <DropdownMenuItem
-                                                                onSelect={(e) => e.preventDefault()}
-                                                                disabled={req.status === 'Cancelado' || req.status === 'Completado'}
-                                                            >
-                                                                Cancelar
-                                                            </DropdownMenuItem>
-                                                        </AlertDialogTrigger>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Cancelar Estudio</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            Selecciona un motivo para la cancelación del estudio de <span className="font-bold">{req.patient.fullName}</span>. Esta acción no se puede deshacer.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <RadioGroup defaultValue={selectedReason} onValueChange={setSelectedReason} className="my-4">
-                                                        {cancellationReasons.map(reason => (
-                                                            <div key={reason} className="flex items-center space-x-2">
-                                                                <RadioGroupItem value={reason} id={reason} />
-                                                                <Label htmlFor={reason}>{reason}</Label>
-                                                            </div>
-                                                        ))}
-                                                    </RadioGroup>
-                                                    <AlertDialogAction onClick={() => handleCancelStudy(req.id)} disabled={isCancelling}>
-                                                        {isCancelling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                                        Confirmar Cancelación
-                                                    </AlertDialogAction>
-                                                    <AlertDialogCancel>Volver</AlertDialogCancel>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </TableCell>
-                                    </TableRow>
-                                )
-                            })
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
-        </Card>
+                                            </TableCell>
+                                            <TableCell className="p-2 align-top text-center text-xs space-y-1">
+                                                <div className="font-medium text-red-600">{formatDate(req.requestDate)}</div>
+                                                <div className="font-medium text-green-600">{formatDate(req.completionDate)}</div>
+                                            </TableCell>
+                                            <TableCell className="p-1 text-right align-top">
+                                                <AlertDialog>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem onClick={() => setEditingStudy(req)}>Editar</DropdownMenuItem>
+                                                            <DropdownMenuSub>
+                                                                <DropdownMenuSubTrigger>Cambiar estado</DropdownMenuSubTrigger>
+                                                                <DropdownMenuPortal>
+                                                                <DropdownMenuSubContent>
+                                                                    {Object.keys(statusConfig).filter(s => s !== 'Cancelado').map(status => (
+                                                                        <DropdownMenuItem key={status} onClick={() => handleStatusChange(req.id, status)}>
+                                                                            {status}
+                                                                        </DropdownMenuItem>
+                                                                    ))}
+                                                                </DropdownMenuSubContent>
+                                                                </DropdownMenuPortal>
+                                                            </DropdownMenuSub>
+                                                            <AlertDialogTrigger asChild>
+                                                                <DropdownMenuItem
+                                                                    onSelect={(e) => e.preventDefault()}
+                                                                    disabled={req.status === 'Cancelado'}
+                                                                    className="text-orange-600 focus:text-orange-600"
+                                                                >
+                                                                    Cancelar
+                                                                </DropdownMenuItem>
+                                                            </AlertDialogTrigger>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Cancelar Estudio</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                Selecciona un motivo para la cancelación del estudio de <span className="font-bold">{req.patient.fullName}</span>. Esta acción no se puede deshacer.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <RadioGroup defaultValue={selectedReason} onValueChange={setSelectedReason} className="my-4">
+                                                            {cancellationReasons.map(reason => (
+                                                                <div key={reason} className="flex items-center space-x-2">
+                                                                    <RadioGroupItem value={reason} id={`${req.id}-${reason}`} />
+                                                                    <Label htmlFor={`${req.id}-${reason}`}>{reason}</Label>
+                                                                </div>
+                                                            ))}
+                                                        </RadioGroup>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Volver</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleCancelStudy(req.id)} disabled={isCancelling}>
+                                                                {isCancelling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Confirmar Cancelación"}
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                })
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </Card>
+
+            <AlertDialog open={!!editingStudy} onOpenChange={(open) => { if (!open) setEditingStudy(null) }}>
+                <AlertDialogContent className="max-h-[90vh] overflow-y-auto">
+                    {editingStudy && (
+                        <form onSubmit={handleEditSubmit}>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Editar Solicitud</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Modifique los datos para la solicitud de <span className="font-bold">{editingStudy.patient.fullName}</span>.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <h3 className="font-semibold text-sm">Datos del Paciente</h3>
+                                <div className="space-y-2">
+                                    <Label htmlFor="patientId">Documento del Paciente</Label>
+                                    <Input id="patientId" name="patientId" defaultValue={editingStudy.patient.id} required />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="fullName">Nombre Completo</Label>
+                                        <Input id="fullName" name="fullName" defaultValue={editingStudy.patient.fullName} required />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="birthDate">Fecha Nacimiento</Label>
+                                        <Input id="birthDate" name="birthDate" type="date" defaultValue={editingStudy.patient.birthDate} required />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="sex">Sexo</Label>
+                                        <Input id="sex" name="sex" defaultValue={editingStudy.patient.sex || ''} required />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="entidad">Entidad/Aseguradora</Label>
+                                        <Input id="entidad" name="entidad" defaultValue={editingStudy.patient.entidad} required />
+                                    </div>
+                                </div>
+
+                                <h3 className="font-semibold text-sm pt-4">Datos del Servicio</h3>
+                                <div className="space-y-2">
+                                    <Label htmlFor="service">Servicio</Label>
+                                    <Input id="service" name="service" defaultValue={editingStudy.service} required />
+                                </div>
+
+                                <h3 className="font-semibold text-sm pt-4">Datos del Estudio</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="cups">CUPS</Label>
+                                        <Input id="cups" name="cups" defaultValue={editingStudy.studies[0].cups} required />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="studyName">Nombre del Estudio</Label>
+                                        <Input id="studyName" name="studyName" defaultValue={editingStudy.studies[0].nombre} required />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="studyDetails">Detalles del Estudio</Label>
+                                    <Input id="studyDetails" name="studyDetails" defaultValue={editingStudy.studies[0].details || ''} />
+                                </div>
+
+                                <h3 className="font-semibold text-sm pt-4">Datos del Diagnóstico</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="cie10">CIE-10</Label>
+                                        <Input id="cie10" name="cie10" defaultValue={editingStudy.diagnosis.code} required />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="diagnosisDescription">Descripción Diagnóstico</Label>
+                                        <Input id="diagnosisDescription" name="diagnosisDescription" defaultValue={editingStudy.diagnosis.description} required />
+                                    </div>
+                                </div>
+                            </div>
+                            <AlertDialogFooter>
+                                <Button type="button" variant="outline" onClick={() => setEditingStudy(null)} disabled={isUpdating}>Cancelar</Button>
+                                <Button type="submit" disabled={isUpdating}>
+                                    {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Guardar Cambios
+                                </Button>
+                            </AlertDialogFooter>
+                        </form>
+                    )}
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 }
 

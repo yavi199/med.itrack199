@@ -1,4 +1,5 @@
 
+
 export type Study = {
     id: string;
     status: string;
@@ -8,11 +9,13 @@ export type Study = {
         id: string;
         entidad: string;
         birthDate?: string;
+        sex?: string;
     };
     studies: {
         nombre: string;
         cups: string;
         modality: string;
+        details?: string;
     }[];
     diagnosis: {
         code: string;
@@ -27,4 +30,5 @@ export type Study = {
     cancellationReason?: string;
 };
 
+    
     
