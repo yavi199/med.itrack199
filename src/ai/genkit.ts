@@ -1,8 +1,8 @@
-import {genkit, configureGenkit} from 'genkit';
+import {genkit} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
-import {config} from 'dotenv';
 
-config(); // Carga las variables de entorno desde el archivo .env
+// La autenticación se manejará automáticamente por el entorno de Google Cloud
+// al no proporcionar una clave de API explícita.
 
 export const ai = genkit({
   plugins: [googleAI({apiVersion: 'v1beta'})],

@@ -31,7 +31,7 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "med-itrack-470514.appspot.com",
     NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "922998764855",
     NEXT_PUBLIC_FIREBASE_APP_ID: "1:922998764855:web:bafbfb2535c62af23b96b2",
-    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    // Se elimina la variable GEMINI_API_KEY ya que no se usará.
   }
 };
 
