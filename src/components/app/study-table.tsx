@@ -191,7 +191,7 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
             const dob = new Date(birthDate);
             if (isNaN(dob.getTime())) return '';
             const age = differenceInYears(new Date(), dob);
-            return `${age}a`;
+            return `/ ${age} AÑOS`;
         } catch {
             return '';
         }
@@ -268,7 +268,7 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
                                                     ID: {req.patient.id} | {req.patient.entidad}
                                                 </div>
                                                 <div className="text-muted-foreground uppercase text-xs">
-                                                     {req.patient.birthDate} ({age})
+                                                     {req.patient.birthDate} {age}
                                                 </div>
                                                 {req.cancellationReason && (
                                                     <div className="text-orange-500 font-semibold text-xs mt-1">
