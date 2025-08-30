@@ -4,9 +4,10 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Search, UploadCloud, Loader2 } from "lucide-react";
+import { Search, UploadCloud, Loader2, FileDown } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { extractOrder, ExtractOrderOutput } from '@/ai/flows/extract-order-flow';
+import { generateAuthorizationPdf } from '@/ai/flows/generate-authorization-pdf-flow';
 import { cn } from '@/lib/utils';
 import {
     AlertDialog,
@@ -26,6 +27,7 @@ export function NewRequestCard() {
     const [dragging, setDragging] = useState(false);
     const [isExtracting, setIsExtracting] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [extractedData, setExtractedData] = useState<ExtractOrderOutput | null>(null);
     const [showManualEntry, setShowManualEntry] = useState(false);
     const [patientId, setPatientId] = useState('');
@@ -127,14 +129,41 @@ export function NewRequestCard() {
         }
     };
 
-    const handleGenerateAuthorization = () => {
+    const handleGenerateAuthorization = async () => {
         if (extractedData) {
+            setIsGeneratingPdf(true);
             toast({
                 title: "Generando Autorización",
-                description: `Se está generando la autorización para ${extractedData.patient.fullName}.`,
+                description: `Se está creando el PDF para ${extractedData.patient.fullName}.`,
             });
-            // Logic to generate PDF will be added here
-            setExtractedData(null);
+            try {
+                const result = await generateAuthorizationPdf(extractedData);
+                const { pdfBase64 } = result;
+
+                // Create a link to download the PDF
+                const link = document.createElement('a');
+                link.href = `data:application/pdf;base64,${pdfBase64}`;
+                link.download = `Autorizacion-${extractedData.patient.id}.pdf`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                toast({
+                    title: "PDF Descargado",
+                    description: "El archivo de autorización se ha descargado correctamente.",
+                    action: <FileDown />,
+                });
+                
+            } catch (error) {
+                 toast({
+                    variant: "destructive",
+                    title: "Error al Generar PDF",
+                    description: "No se pudo crear el archivo PDF. Por favor, intenta de nuevo.",
+                });
+            } finally {
+                setIsGeneratingPdf(false);
+                setExtractedData(null);
+            }
         }
     };
 
@@ -236,7 +265,7 @@ export function NewRequestCard() {
                 </CardContent>
             </Card>
 
-            <AlertDialog open={!!extractedData} onOpenChange={(open) => {if (!open && !isCreating) setExtractedData(null)}}>
+            <AlertDialog open={!!extractedData} onOpenChange={(open) => {if (!open && !isCreating && !isGeneratingPdf) setExtractedData(null)}}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Orden Procesada Exitosamente</AlertDialogTitle>
@@ -245,8 +274,11 @@ export function NewRequestCard() {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="sm:justify-between gap-2">
-                        <Button variant="outline" onClick={handleGenerateAuthorization}>Generar Autorización PDF</Button>
-                        <Button onClick={() => handleCreateRequest(extractedData)} disabled={isCreating}>
+                        <Button variant="outline" onClick={handleGenerateAuthorization} disabled={isGeneratingPdf || isCreating}>
+                            {isGeneratingPdf && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Generar Autorización PDF
+                        </Button>
+                        <Button onClick={() => handleCreateRequest(extractedData)} disabled={isCreating || isGeneratingPdf}>
                             {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Crear Solicitud
                         </Button>
@@ -363,5 +395,3 @@ export function NewRequestCard() {
         </>
     );
 }
-
-    
