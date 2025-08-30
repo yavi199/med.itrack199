@@ -350,8 +350,8 @@ Saludos cordiales.
                     <AlertDialogHeader>
                         <AlertDialogTitle>Generar Autorización</AlertDialogTitle>
                         <AlertDialogDescription>
-                             <p>Paciente: <span className="font-bold">{extractedData?.patient.fullName}</span></p>
-                             <p>Estudio: <span className="font-bold">{extractedData?.studies[0]?.nombre}</span></p>
+                             <div>Paciente: <span className="font-bold">{extractedData?.patient.fullName}</span></div>
+                             <div>Estudio: <span className="font-bold">{extractedData?.studies[0]?.nombre}</span></div>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="sm:justify-between gap-2 pt-4">
@@ -477,3 +477,5 @@ Saludos cordiales.
         </>
     );
 }
+
+    
