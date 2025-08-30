@@ -31,6 +31,7 @@ export function NewRequestCard() {
     const [extractedData, setExtractedData] = useState<ExtractOrderOutput | null>(null);
     const [showManualEntry, setShowManualEntry] = useState(false);
     const [patientId, setPatientId] = useState('');
+    const [pdfGenerated, setPdfGenerated] = useState(false);
     const { toast } = useToast();
 
     const handleFileChange = async (files: FileList | null) => {
@@ -45,6 +46,7 @@ export function NewRequestCard() {
                 return;
             }
             setIsExtracting(true);
+            setPdfGenerated(false); // Reset on new file
 
             const reader = new FileReader();
             reader.onload = async (e) => {
@@ -66,37 +68,18 @@ export function NewRequestCard() {
         }
     };
 
-    const handleDragEnter = (e: React.DragEvent<HTMLElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragging(true);
-    };
-
-    const handleDragLeave = (e: React.DragEvent<HTMLElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragging(false);
-    };
-
-    const handleDragOver = (e: React.DragEvent<HTMLElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-    };
-
-    const handleDrop = (e: React.DragEvent<HTMLElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragging(false);
-        const files = e.dataTransfer.files;
-        handleFileChange(files);
-    };
+    const resetState = () => {
+        setExtractedData(null);
+        setShowManualEntry(false);
+        setPatientId('');
+        setPdfGenerated(false);
+    }
 
     const handleCreateRequest = async (dataToSave: ExtractOrderOutput | null) => {
         if (!dataToSave) return;
 
         setIsCreating(true);
         try {
-            // Ensure data is plain objects for Firestore
             const studyData = {
                 patient: { ...dataToSave.patient },
                 studies: dataToSave.studies.map(s => ({ ...s })),
@@ -110,15 +93,25 @@ export function NewRequestCard() {
             };
 
             const docRef = await addDoc(collection(db, "studies"), studyData);
+            
+            // If PDF was generated, create the authorization log
+            if (pdfGenerated) {
+                await addDoc(collection(db, "authorizations"), {
+                    studyId: docRef.id,
+                    patientId: dataToSave.patient.id,
+                    patientFullName: dataToSave.patient.fullName,
+                    studyName: dataToSave.studies[0]?.nombre || 'N/A',
+                    generatedAt: serverTimestamp(),
+                });
+            }
 
             toast({
                 title: "Solicitud Creada",
                 description: `Solicitud para ${dataToSave.patient?.fullName} ha sido creada con el ID: ${docRef.id}.`,
             });
-            setExtractedData(null);
-            setShowManualEntry(false);
-            setPatientId('');
+            resetState();
         } catch (error) {
+            console.error("Error creating request:", error);
             toast({
                 variant: "destructive",
                 title: "Error al Crear Solicitud",
@@ -128,7 +121,7 @@ export function NewRequestCard() {
             setIsCreating(false);
         }
     };
-
+    
     const handleGenerateAuthorization = async () => {
         if (extractedData) {
             setIsGeneratingPdf(true);
@@ -140,7 +133,6 @@ export function NewRequestCard() {
                 const result = await generateAuthorizationPdf(extractedData);
                 const { pdfBase64 } = result;
 
-                // Create a link to download the PDF
                 const link = document.createElement('a');
                 link.href = `data:application/pdf;base64,${pdfBase64}`;
                 link.download = `Autorizacion-${extractedData.patient.id}.pdf`;
@@ -153,6 +145,7 @@ export function NewRequestCard() {
                     description: "El archivo de autorización se ha descargado correctamente.",
                     action: <FileDown />,
                 });
+                setPdfGenerated(true); // Mark that PDF was generated for this data
                 
             } catch (error) {
                  toast({
@@ -162,7 +155,6 @@ export function NewRequestCard() {
                 });
             } finally {
                 setIsGeneratingPdf(false);
-                setExtractedData(null);
             }
         }
     };
@@ -199,6 +191,17 @@ export function NewRequestCard() {
             }
         };
         await handleCreateRequest(data);
+    };
+
+    const handleDragEnter = (e: React.DragEvent<HTMLElement>) => { e.preventDefault(); e.stopPropagation(); setDragging(true); };
+    const handleDragLeave = (e: React.DragEvent<HTMLElement>) => { e.preventDefault(); e.stopPropagation(); setDragging(false); };
+    const handleDragOver = (e: React.DragEvent<HTMLElement>) => { e.preventDefault(); e.stopPropagation(); };
+    const handleDrop = (e: React.DragEvent<HTMLElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragging(false);
+        const files = e.dataTransfer.files;
+        handleFileChange(files);
     };
 
     const handleIdInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -265,18 +268,20 @@ export function NewRequestCard() {
                 </CardContent>
             </Card>
 
-            <AlertDialog open={!!extractedData} onOpenChange={(open) => {if (!open && !isCreating && !isGeneratingPdf) setExtractedData(null)}}>
+            <AlertDialog open={!!extractedData} onOpenChange={(open) => {if (!open && !isCreating) resetState()}}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Orden Procesada Exitosamente</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Se ha extraído la información de la orden para el paciente <span className="font-bold">{extractedData?.patient.fullName}</span>. ¿Qué deseas hacer a continuación?
+                            Se ha extraído la información para <span className="font-bold">{extractedData?.patient.fullName}</span>.
+                            {pdfGenerated && <span className="block mt-2 font-semibold text-green-600">✓ PDF de autorización ya generado.</span>}
+                            ¿Qué deseas hacer a continuación?
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="sm:justify-between gap-2">
                         <Button variant="outline" onClick={handleGenerateAuthorization} disabled={isGeneratingPdf || isCreating}>
                             {isGeneratingPdf && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Generar Autorización PDF
+                            {pdfGenerated ? "Volver a Generar PDF" : "Generar Autorización PDF"}
                         </Button>
                         <Button onClick={() => handleCreateRequest(extractedData)} disabled={isCreating || isGeneratingPdf}>
                             {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -286,7 +291,7 @@ export function NewRequestCard() {
                 </AlertDialogContent>
             </AlertDialog>
 
-            <AlertDialog open={showManualEntry} onOpenChange={(open) => { if (!open) { setShowManualEntry(false); setPatientId(''); } }}>
+            <AlertDialog open={showManualEntry} onOpenChange={(open) => { if (!open) resetState() }}>
                 <AlertDialogContent className="max-h-[90vh] overflow-y-auto">
                     <form onSubmit={handleManualSubmit}>
                         <AlertDialogHeader>
@@ -383,7 +388,7 @@ export function NewRequestCard() {
                             </div>
                         </div>
                         <AlertDialogFooter>
-                            <Button type="button" variant="outline" onClick={() => { setShowManualEntry(false); setPatientId(''); }} disabled={isCreating}>Cancelar</Button>
+                            <Button type="button" variant="outline" onClick={resetState} disabled={isCreating}>Cancelar</Button>
                             <Button type="submit" disabled={isCreating}>
                                 {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Crear Solicitud
