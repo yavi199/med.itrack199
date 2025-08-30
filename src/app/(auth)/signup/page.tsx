@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import type { UserRole, Service } from '@/lib/types';
+import type { UserRole, Service, SubServiceArea } from '@/lib/types';
 
 const AppLogo = (props: any) => (
   <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
@@ -25,13 +25,15 @@ const AppLogo = (props: any) => (
 
 const roles: UserRole[] = ["administrador", "enfermero", "tecnologo", "transcriptora"];
 const services: Service[] = ["TAC", "RX", "ECO", "MAMO", "DENSITOMETRIA", "RMN", "General"];
+const subServiceAreas: SubServiceArea[] = ["TRIAGE", "OBS1", "OBS2", "HOSP 2", "HOSP 4", "UCI 2", "UCI 3", "UCI NEO", "C.EXT"];
+
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
   const [rol, setRol] = useState<UserRole>('enfermero');
-  const [servicioAsignado, setServicioAsignado] = useState<Service>('General');
+  const [servicioAsignado, setServicioAsignado] = useState<Service | SubServiceArea>('General');
   
   const { signup, userProfile } = useAuth();
   const router = useRouter();
@@ -45,6 +47,15 @@ export default function SignupPage() {
   //   }
   // }, [userProfile, router]);
 
+  const handleRoleChange = (value: UserRole) => {
+    setRol(value);
+    // Reset service when role changes to avoid invalid combinations
+    if (value === 'enfermero') {
+      setServicioAsignado('TRIAGE');
+    } else {
+      setServicioAsignado('General');
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +91,8 @@ export default function SignupPage() {
       setLoading(false);
     }
   };
+
+  const serviceOptions = rol === 'enfermero' ? subServiceAreas : services;
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background py-12">
@@ -129,7 +142,7 @@ export default function SignupPage() {
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label htmlFor="rol">Rol</Label>
-                    <Select onValueChange={(value: UserRole) => setRol(value)} defaultValue={rol}>
+                    <Select onValueChange={handleRoleChange} defaultValue={rol}>
                         <SelectTrigger id="rol">
                             <SelectValue placeholder="Selecciona un rol" />
                         </SelectTrigger>
@@ -139,13 +152,13 @@ export default function SignupPage() {
                     </Select>
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="servicio">Servicio</Label>
-                    <Select onValueChange={(value: Service) => setServicioAsignado(value)} defaultValue={servicioAsignado}>
+                    <Label htmlFor="servicio">{rol === 'enfermero' ? 'Área de Servicio' : 'Servicio'}</Label>
+                    <Select onValueChange={(value: Service | SubServiceArea) => setServicioAsignado(value)} value={servicioAsignado}>
                         <SelectTrigger id="servicio">
-                            <SelectValue placeholder="Selecciona un servicio" />
+                            <SelectValue placeholder="Selecciona una opción" />
                         </SelectTrigger>
                         <SelectContent>
-                             {services.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                             {serviceOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                         </SelectContent>
                     </Select>
                 </div>

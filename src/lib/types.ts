@@ -1,14 +1,19 @@
 
+
 export type UserRole = "administrador" | "enfermero" | "tecnologo" | "transcriptora";
 
 export type Service = "TAC" | "RX" | "ECO" | "MAMO" | "DENSITOMETRIA" | "RMN" | "General";
+
+export type GeneralArea = "URG" | "HOSP" | "UCI" | "C.EXT";
+export type SubServiceArea = "TRIAGE" | "OBS1" | "OBS2" | "HOSP 2" | "HOSP 4" | "UCI 2" | "UCI 3" | "UCI NEO" | "C.EXT";
+
 
 export type UserProfile = {
     uid: string;
     nombre: string;
     email: string;
     rol: UserRole;
-    servicioAsignado: Service;
+    servicioAsignado: Service | SubServiceArea;
     activo: boolean;
 };
 
@@ -23,9 +28,9 @@ export type Order = {
     };
     fechaCreacion: { toDate: () => Date; } | null;
     creadoPorUID: string;
-    servicio: string;
-    areaGeneral: string;
-    subServicio: string;
+    servicio: string; // This would be the modality like TAC, RX etc.
+    areaGeneral: GeneralArea;
+    subServicio: SubServiceArea;
     estado: "Pendiente" | "Agendado" | "En Proceso" | "Leído" | "Completado" | "Cancelado";
     urlPdfOrden?: string;
     urlPdfInforme?: string;

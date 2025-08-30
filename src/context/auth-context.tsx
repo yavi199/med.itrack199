@@ -5,7 +5,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, User, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import type { UserProfile, UserRole, Service } from '@/lib/types';
+import type { UserProfile, UserRole, Service, SubServiceArea } from '@/lib/types';
 
 interface AuthContextType {
   user: User | null;
