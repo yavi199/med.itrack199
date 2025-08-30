@@ -19,10 +19,11 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Search, CheckCircle, Clock, XCircle, Loader2, Trash2 } from 'lucide-react';
+import { MoreVertical, Search, CheckCircle, Clock, XCircle, Loader2, CalendarIcon } from 'lucide-react';
 import { Card } from '../ui/card';
 import { cn } from "@/lib/utils";
 import { format, differenceInYears } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { Study } from "@/lib/types";
 import { doc, updateDoc, serverTimestamp, deleteField } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -38,9 +39,12 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/auth-context";
+import { DateRange } from "react-day-picker";
 
 
 type ActiveFilters = {
@@ -55,6 +59,8 @@ type StudyTableProps = {
     setSearchTerm: (term: string) => void;
     activeFilters: ActiveFilters;
     toggleFilter: (type: keyof ActiveFilters, value: string) => void;
+    dateRange: DateRange | undefined;
+    setDateRange: (dateRange: DateRange | undefined) => void;
 };
 
 const statusConfig = {
@@ -72,7 +78,7 @@ const cancellationReasons = [
     'Estudio mal cargado'
 ];
 
-export function StudyTable({ studies, loading, searchTerm, setSearchTerm, activeFilters, toggleFilter }: StudyTableProps) {
+export function StudyTable({ studies, loading, searchTerm, setSearchTerm, activeFilters, toggleFilter, dateRange, setDateRange }: StudyTableProps) {
     const { userProfile } = useAuth();
     const { toast } = useToast();
     const [isUpdating, setIsUpdating] = useState(false);
@@ -250,7 +256,46 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm, active
                                     </div>
                                 </TableHead>
                                 <TableHead className="font-bold p-2 min-w-[300px]">Estudio</TableHead>
-                                <TableHead className="text-center font-bold p-2" style={{ width: '120px' }}>Fecha</TableHead>
+                                <TableHead className="text-center font-bold p-2" style={{ width: '150px' }}>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                id="date"
+                                                variant={"ghost"}
+                                                size="sm"
+                                                className={cn(
+                                                    "w-full justify-center text-center font-bold h-8",
+                                                    !dateRange && "text-muted-foreground"
+                                                )}
+                                            >
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {dateRange?.from ? (
+                                                    dateRange.to ? (
+                                                    <>
+                                                        {format(dateRange.from, "LLL dd, y")} -{" "}
+                                                        {format(dateRange.to, "LLL dd, y")}
+                                                    </>
+                                                    ) : (
+                                                    format(dateRange.from, "LLL dd, y")
+                                                    )
+                                                ) : (
+                                                    <span>Fecha</span>
+                                                )}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="center">
+                                            <Calendar
+                                                initialFocus
+                                                mode="range"
+                                                defaultMonth={dateRange?.from}
+                                                selected={dateRange}
+                                                onSelect={setDateRange}
+                                                numberOfMonths={2}
+                                                locale={es}
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+                                </TableHead>
                                 <TableHead className="p-2" style={{ width: '40px' }}></TableHead>
                             </TableRow>
                         </TableHeader>

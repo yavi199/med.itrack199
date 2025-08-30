@@ -13,6 +13,8 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import { DateRange } from 'react-day-picker';
+import { subDays } from 'date-fns';
 
 
 type Summary = {
@@ -54,6 +56,10 @@ export default function HomePage() {
   const [filteredStudies, setFilteredStudies] = useState<Study[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({ modalities: [], services: [], statuses: [] });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subDays(new Date(), 1),
+    to: new Date(),
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -148,7 +154,24 @@ export default function HomePage() {
             activeFilters.statuses.includes(item.status)
         );
     }
-    
+
+    // Filter by date range
+    if (dateRange?.from) {
+        filteredData = filteredData.filter(item => {
+            if (!item.requestDate) return false;
+            const itemDate = item.requestDate.toDate();
+            // Set 'from' to the beginning of the day
+            const fromDate = new Date(dateRange.from!);
+            fromDate.setHours(0, 0, 0, 0);
+
+            // Set 'to' to the end of the day if it exists, otherwise use 'from'
+            const toDate = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from!);
+            toDate.setHours(23, 59, 59, 999);
+
+            return itemDate >= fromDate && itemDate <= toDate;
+        });
+    }
+
     setFilteredStudies(filteredData);
     
     // Recalculate summary counts for pending studies
@@ -171,7 +194,7 @@ export default function HomePage() {
     setServiceSummary(newServiceSummary);
 
 
-  }, [searchTerm, studies, activeFilters]);
+  }, [searchTerm, studies, activeFilters, dateRange]);
 
   if (authLoading || !user) {
     return (
@@ -264,6 +287,8 @@ export default function HomePage() {
             setSearchTerm={setSearchTerm}
             activeFilters={activeFilters}
             toggleFilter={toggleFilter}
+            dateRange={dateRange}
+            setDateRange={setDateRange}
             />
         </div>
       </main>
