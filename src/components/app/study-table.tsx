@@ -19,7 +19,7 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Search, CheckCircle, Clock, XCircle, Loader2, ChevronDown } from 'lucide-react';
+import { MoreVertical, Search, CheckCircle, Clock, XCircle, Loader2, Trash2 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { cn } from "@/lib/utils";
 import { format, differenceInYears } from 'date-fns';
@@ -40,6 +40,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/context/auth-context";
+
 
 type ActiveFilters = {
     modalities: string[];
@@ -71,7 +73,7 @@ const cancellationReasons = [
 ];
 
 export function StudyTable({ studies, loading, searchTerm, setSearchTerm, activeFilters, toggleFilter }: StudyTableProps) {
-    
+    const { userProfile } = useAuth();
     const { toast } = useToast();
     const [isUpdating, setIsUpdating] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
@@ -218,7 +220,6 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm, active
                                         <DropdownMenuTrigger asChild>
                                              <Button variant="ghost" size="sm" className="font-bold -ml-3 h-8">
                                                 Estado
-                                                <ChevronDown className="ml-2 h-4 w-4" />
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="start">
