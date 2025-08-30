@@ -6,9 +6,6 @@ import { AuthProvider } from '@/context/auth-context';
 export const metadata: Metadata = {
   title: 'Med-iTrack',
   description: 'Precision you can trace.',
-  icons: {
-    icon: '/favicon.ico',
-  },
 };
 
 export default function RootLayout({
