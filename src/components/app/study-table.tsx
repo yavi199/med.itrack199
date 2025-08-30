@@ -317,7 +317,7 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm, active
                                                     onClick={() => handleQuickStatusChange(req.id, req.status)}
                                                     disabled={req.status !== 'Pendiente' || isUpdating}
                                                     className={cn(
-                                                        'w-full h-full flex flex-col items-center justify-center gap-1 p-2 rounded-md border transition-colors',
+                                                        'w-full h-full flex flex-col items-center justify-center gap-1 p-1 rounded-md border transition-colors',
                                                         className,
                                                         req.status === 'Pendiente' && 'hover:bg-opacity-80'
                                                     )}
