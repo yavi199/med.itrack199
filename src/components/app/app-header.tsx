@@ -8,20 +8,10 @@ import { LogOut, User as UserIcon } from 'lucide-react';
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from 'next/image';
 
 const AppLogo = (props: any) => (
-  <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-    <path fill="none" d="M0 0h256v256H0z" />
-    <path
-      fill="currentColor"
-      d="M128 24a104 104 0 1 0 104 104A104.11 104.11 0 0 0 128 24zm44.24 88.54-52.5 52.5a8 8 0 0 1-11.32 0l-28.5-28.5a8 8 0 0 1 11.32-11.32L112 147.31l46.92-46.91a8 8 0 0 1 11.32 11.32z"
-      opacity="0.2"
-    />
-    <path
-      d="M232 128A104 104 0 1 1 128 24a104.11 104.11 0 0 1 104 104zm-59.76-15.46a8 8 0 0 0-11.32-11.32L112 147.31l-22.92-22.91a8 8 0 0 0-11.32 11.32l28.5 28.5a8 8 0 0 0 11.32 0l52.5-52.5z"
-      fill="currentColor"
-    />
-  </svg>
+  <Image src="/favicon.ico" alt="Med-iTrack Logo" width={48} height={48} {...props} />
 );
 
 
