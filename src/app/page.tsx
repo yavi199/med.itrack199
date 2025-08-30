@@ -10,6 +10,9 @@ import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Study } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/context/auth-context';
+import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
 
 type Summary = {
@@ -41,6 +44,9 @@ const getModality = (studyName: string): string => {
 }
 
 export default function HomePage() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+
   const [summary, setSummary] = useState<Summary>({ ECO: 0, RX: 0, TAC: 0, RMN: 0 });
   const [serviceSummary, setServiceSummary] = useState<ServiceSummary>({ URG: 0, HOSP: 0, UCI: 0, 'C. EXT': 0 });
   const [studies, setStudies] = useState<Study[]>([]);
@@ -50,6 +56,13 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (!user) return;
     const q = query(collection(db, "studies"), orderBy("requestDate", "desc"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const studiesData: Study[] = [];
@@ -94,7 +107,7 @@ export default function HomePage() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     let filteredData = studies;
@@ -147,6 +160,14 @@ export default function HomePage() {
 
 
   }, [searchTerm, studies, activeFilters]);
+
+  if (authLoading || !user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const toggleFilter = (type: 'modalities' | 'services', value: string) => {
     setActiveFilters(prev => {

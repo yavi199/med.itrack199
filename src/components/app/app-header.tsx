@@ -3,8 +3,10 @@
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut } from 'lucide-react';
-import { firebaseConfig } from "@/lib/firebase";
+import { LogOut, User as UserIcon } from 'lucide-react';
+import { useAuth } from "@/context/auth-context";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 const AppLogo = (props: any) => (
   <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
@@ -17,11 +19,24 @@ const AppLogo = (props: any) => (
 
 
 export function AppHeader() {
+  const { user, userProfile, logout } = useAuth();
+  const router = useRouter();
+  
+  const handleLogout = async () => {
+    await logout();
+    router.push('/login');
+  };
+
+  const getInitials = (name: string) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  }
+
   return (
     <header className="bg-card border-b shadow-sm sticky top-0 z-30">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
-          <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3">
             <AppLogo className="h-12 w-12 text-primary" />
             <div className="grid">
               <h1 className="text-2xl font-bold font-headline text-gray-800 dark:text-gray-200">
@@ -31,31 +46,46 @@ export function AppHeader() {
                 Precision you can trace.
               </p>
             </div>
-          </div>
+          </Link>
           <div className="flex items-center gap-4">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src="https://i.pravatar.cc/150?u=a042581f4e29026704d" alt="Usuario" />
-                    <AvatarFallback>CN</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Admin User</p>
-                    <p className="text-xs leading-none text-muted-foreground">admin@meditrack.com</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Cerrar sesión</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={`https://i.pravatar.cc/150?u=${user.uid}`} alt={userProfile?.nombre} />
+                      <AvatarFallback>{getInitials(userProfile?.nombre || '')}</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{userProfile?.nombre}</p>
+                      <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                      <p className="text-xs leading-none text-muted-foreground capitalize pt-1 font-semibold">{userProfile?.rol} / {userProfile?.servicioAsignado}</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {userProfile?.rol === 'administrador' && (
+                    <Link href="/signup">
+                      <DropdownMenuItem>
+                          <UserIcon className="mr-2 h-4 w-4" />
+                          <span>Crear Usuario</span>
+                      </DropdownMenuItem>
+                    </Link>
+                  )}
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Cerrar sesión</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button asChild>
+                <Link href="/login">Iniciar Sesión</Link>
+              </Button>
+            )}
           </div>
         </div>
       </div>
