@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Search, UploadCloud, Loader2, FileDown } from "lucide-react";
+import { Search, UploadCloud, Loader2, FileDown, User, FileText, ChevronRight } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { extractOrder, ExtractOrderOutput } from '@/ai/flows/extract-order-flow';
 import { generateAuthorizationPdf } from '@/ai/flows/generate-authorization-pdf-flow';
@@ -21,15 +21,18 @@ import { Button } from '../ui/button';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Label } from '../ui/label';
-
+import { useAuth } from '@/context/auth-context';
 
 export function NewRequestCard() {
+    const { userProfile } = useAuth();
     const [dragging, setDragging] = useState(false);
     const [isExtracting, setIsExtracting] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [extractedData, setExtractedData] = useState<ExtractOrderOutput | null>(null);
     const [showManualEntry, setShowManualEntry] = useState(false);
+    const [showAdminChoice, setShowAdminChoice] = useState(false);
+    const [showAuthorizationOptions, setShowAuthorizationOptions] = useState(false);
     const [patientId, setPatientId] = useState('');
     const [pdfGenerated, setPdfGenerated] = useState(false);
     const { toast } = useToast();
@@ -46,7 +49,7 @@ export function NewRequestCard() {
                 return;
             }
             setIsExtracting(true);
-            setPdfGenerated(false); // Reset on new file
+            setPdfGenerated(false);
 
             const reader = new FileReader();
             reader.onload = async (e) => {
@@ -54,12 +57,19 @@ export function NewRequestCard() {
                 try {
                     const result = await extractOrder({ fileDataUri: dataUri });
                     setExtractedData(result);
+                    if (userProfile?.rol === 'administrador') {
+                        setShowAdminChoice(true);
+                    } else {
+                        // For non-admins, create request directly
+                        await handleCreateRequest(result);
+                    }
                 } catch (error) {
                     toast({
                         variant: "destructive",
                         title: "Error de Extracción",
                         description: "No se pudo procesar el archivo. Intenta de nuevo.",
                     });
+                     resetState();
                 } finally {
                     setIsExtracting(false);
                 }
@@ -73,12 +83,15 @@ export function NewRequestCard() {
         setShowManualEntry(false);
         setPatientId('');
         setPdfGenerated(false);
+        setShowAdminChoice(false);
+        setShowAuthorizationOptions(false);
     }
 
     const handleCreateRequest = async (dataToSave: ExtractOrderOutput | null) => {
         if (!dataToSave) return;
 
         setIsCreating(true);
+        setShowAdminChoice(false); // Close admin dialog if open
         try {
             const studyData = {
                 patient: { ...dataToSave.patient },
@@ -94,7 +107,6 @@ export function NewRequestCard() {
 
             const docRef = await addDoc(collection(db, "studies"), studyData);
             
-            // If PDF was generated, create the authorization log
             if (pdfGenerated) {
                 await addDoc(collection(db, "authorizations"), {
                     studyId: docRef.id,
@@ -122,7 +134,7 @@ export function NewRequestCard() {
         }
     };
     
-    const handleGenerateAuthorization = async () => {
+    const handleGenerateAuthorization = async (type: 'eps' | 'own') => {
         if (extractedData) {
             setIsGeneratingPdf(true);
             toast({
@@ -135,7 +147,7 @@ export function NewRequestCard() {
 
                 const link = document.createElement('a');
                 link.href = `data:application/pdf;base64,${pdfBase64}`;
-                link.download = `Autorizacion-${extractedData.patient.id}.pdf`;
+                link.download = `Autorizacion-${type}-${extractedData.patient.id}.pdf`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
@@ -145,7 +157,10 @@ export function NewRequestCard() {
                     description: "El archivo de autorización se ha descargado correctamente.",
                     action: <FileDown />,
                 });
-                setPdfGenerated(true); // Mark that PDF was generated for this data
+                setPdfGenerated(true);
+                // After generating, we go back to the first admin choice dialog
+                setShowAuthorizationOptions(false);
+                setShowAdminChoice(true);
                 
             } catch (error) {
                  toast({
@@ -159,6 +174,11 @@ export function NewRequestCard() {
         }
     };
 
+    const openAuthorizationOptions = () => {
+        setShowAdminChoice(false);
+        setShowAuthorizationOptions(true);
+    }
+    
     const handleManualSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
@@ -268,28 +288,56 @@ export function NewRequestCard() {
                 </CardContent>
             </Card>
 
-            <AlertDialog open={!!extractedData} onOpenChange={(open) => {if (!open && !isCreating) resetState()}}>
+            {/* Admin Choice Dialog */}
+            <AlertDialog open={showAdminChoice} onOpenChange={(open) => {if (!open) resetState()}}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Orden Procesada Exitosamente</AlertDialogTitle>
                         <AlertDialogDescription>
                             Se ha extraído la información para <span className="font-bold">{extractedData?.patient.fullName}</span>.
-                            {pdfGenerated && <span className="block mt-2 font-semibold text-green-600">✓ PDF de autorización ya generado.</span>}
+                             {pdfGenerated && <span className="block mt-2 font-semibold text-green-600">✓ PDF de autorización ya generado.</span>}
                             ¿Qué deseas hacer a continuación?
                         </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter className="sm:justify-between gap-2">
-                        <Button variant="outline" onClick={handleGenerateAuthorization} disabled={isGeneratingPdf || isCreating}>
-                            {isGeneratingPdf && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {pdfGenerated ? "Volver a Generar PDF" : "Generar Autorización PDF"}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
+                        <Button variant="outline" className="h-20 flex-col gap-2" onClick={openAuthorizationOptions}>
+                            <FileText />
+                            Generar Autorización
                         </Button>
-                        <Button onClick={() => handleCreateRequest(extractedData)} disabled={isCreating || isGeneratingPdf}>
-                            {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                         <Button variant="outline" className="h-20 flex-col gap-2" onClick={() => handleCreateRequest(extractedData)}>
+                             <User />
                             Crear Solicitud
+                        </Button>
+                    </div>
+                    <AlertDialogFooter>
+                        <Button variant="ghost" onClick={resetState}>Cancelar</Button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            
+            {/* Authorization Options Dialog */}
+            <AlertDialog open={showAuthorizationOptions} onOpenChange={(open) => {if (!open) resetState()}}>
+                 <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Generar Autorización</AlertDialogTitle>
+                        <AlertDialogDescription>
+                             <p>Paciente: <span className="font-bold">{extractedData?.patient.fullName}</span></p>
+                             <p>Estudio: <span className="font-bold">{extractedData?.studies[0]?.nombre}</span></p>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="sm:justify-between gap-2 pt-4">
+                         <Button variant="outline" onClick={() => handleGenerateAuthorization('eps')} disabled={isGeneratingPdf}>
+                            {isGeneratingPdf && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Solicitar a EPS
+                        </Button>
+                        <Button onClick={() => handleGenerateAuthorization('own')} disabled={isGeneratingPdf}>
+                            {isGeneratingPdf && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Autorización Propia
                         </Button>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
 
             <AlertDialog open={showManualEntry} onOpenChange={(open) => { if (!open) resetState() }}>
                 <AlertDialogContent className="max-h-[90vh] overflow-y-auto">
