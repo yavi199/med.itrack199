@@ -135,7 +135,36 @@ export function NewRequestCard() {
     };
     
     const handleGenerateAuthorization = async (type: 'eps' | 'own') => {
-        if (extractedData) {
+        if (!extractedData) return;
+
+        if (type === 'eps') {
+            const patient = extractedData.patient;
+            const study = extractedData.studies[0];
+            const diagnosis = extractedData.diagnosis;
+
+            const subject = `Solicitud de Autorización para ${patient.fullName} - ID ${patient.id}`;
+            const body = `Buen día,
+
+Solicito amablemente la autorización para el siguiente procedimiento para el paciente ${patient.fullName} (ID: ${patient.id}):
+
+- Estudio: ${study.nombre}
+- CUPS: ${study.cups}
+- Diagnóstico: ${diagnosis.description} (${diagnosis.code})
+
+Adjunto la orden médica.
+
+Quedo atento a su respuesta.
+
+Saludos cordiales.
+`;
+            const mailtoLink = `mailto:autorizaciones@eps.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            window.location.href = mailtoLink;
+            toast({
+                title: "Abriendo cliente de correo",
+                description: "Prepara el correo para enviarlo a la EPS.",
+            });
+
+        } else if (type === 'own') {
             setIsGeneratingPdf(true);
             toast({
                 title: "Generando Autorización",
@@ -147,7 +176,7 @@ export function NewRequestCard() {
 
                 const link = document.createElement('a');
                 link.href = `data:application/pdf;base64,${pdfBase64}`;
-                link.download = `Autorizacion-${type}-${extractedData.patient.id}.pdf`;
+                link.download = `Autorizacion-propia-${extractedData.patient.id}.pdf`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
