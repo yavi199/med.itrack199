@@ -215,10 +215,10 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm, active
                     <Table>
                         <TableHeader className="bg-muted/50">
                             <TableRow>
-                                <TableHead className="p-2" style={{ width: '120px' }}>
+                                <TableHead className="p-2 text-center" style={{ width: '120px' }}>
                                      <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                             <Button variant="ghost" size="sm" className="font-bold -ml-3 h-8">
+                                             <Button variant="ghost" size="sm" className="font-bold h-8">
                                                 Estado
                                             </Button>
                                         </DropdownMenuTrigger>
