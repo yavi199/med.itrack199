@@ -312,7 +312,7 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm, active
                                     
                                     return (
                                         <TableRow key={req.id} className="text-sm">
-                                            <TableCell className="p-1 align-top h-full">
+                                            <TableCell className="p-1 align-middle h-full">
                                                 <button 
                                                     onClick={() => handleQuickStatusChange(req.id, req.status)}
                                                     disabled={req.status !== 'Pendiente' || isUpdating}
