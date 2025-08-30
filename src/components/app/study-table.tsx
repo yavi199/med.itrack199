@@ -323,7 +323,7 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm, active
                                                     )}
                                                 >
                                                     <Icon className={cn('h-5 w-5', iconClassName)} />
-                                                    <p className='text-[10px] font-bold'>{label.toUpperCase()}</p>
+                                                    <p className='text-xs font-bold'>{label.toUpperCase()}</p>
                                                 </button>
                                             </TableCell>
                                             <TableCell className="p-2 align-top text-center font-bold">{req.service}</TableCell>
