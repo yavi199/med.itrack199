@@ -15,8 +15,11 @@ import {
     DropdownMenuSubTrigger,
     DropdownMenuPortal,
     DropdownMenuSubContent,
+    DropdownMenuCheckboxItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Search, CheckCircle, Clock, XCircle, Loader2 } from 'lucide-react';
+import { MoreVertical, Search, CheckCircle, Clock, XCircle, Loader2, ChevronDown } from 'lucide-react';
 import { Card } from '../ui/card';
 import { cn } from "@/lib/utils";
 import { format, differenceInYears } from 'date-fns';
@@ -38,11 +41,18 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 
+type ActiveFilters = {
+    modalities: string[];
+    services: string[];
+    statuses: string[];
+}
 type StudyTableProps = {
     studies: Study[];
     loading: boolean;
     searchTerm: string;
     setSearchTerm: (term: string) => void;
+    activeFilters: ActiveFilters;
+    toggleFilter: (type: keyof ActiveFilters, value: string) => void;
 };
 
 const statusConfig = {
@@ -60,7 +70,7 @@ const cancellationReasons = [
     'Estudio mal cargado'
 ];
 
-export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: StudyTableProps) {
+export function StudyTable({ studies, loading, searchTerm, setSearchTerm, activeFilters, toggleFilter }: StudyTableProps) {
     
     const { toast } = useToast();
     const [isUpdating, setIsUpdating] = useState(false);
@@ -203,7 +213,29 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
                     <Table>
                         <TableHeader className="bg-muted/50">
                             <TableRow>
-                                <TableHead className="text-center font-bold p-2" style={{ width: '100px' }}>Estado</TableHead>
+                                <TableHead className="p-2" style={{ width: '120px' }}>
+                                     <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                             <Button variant="ghost" size="sm" className="font-bold -ml-3 h-8">
+                                                Estado
+                                                <ChevronDown className="ml-2 h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="start">
+                                            <DropdownMenuLabel>Filtrar por estado</DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
+                                            {Object.keys(statusConfig).map((status) => (
+                                                <DropdownMenuCheckboxItem
+                                                    key={status}
+                                                    checked={activeFilters.statuses.includes(status)}
+                                                    onCheckedChange={() => toggleFilter('statuses', status)}
+                                                >
+                                                    {status}
+                                                </DropdownMenuCheckboxItem>
+                                            ))}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableHead>
                                 <TableHead className="text-center font-bold p-2" style={{ width: '85px' }}>Servicio</TableHead>
                                 <TableHead className="align-middle p-2 min-w-[300px]">
                                     <div className="relative">
@@ -439,7 +471,3 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm }: Stud
         </>
     );
 }
-
-    
-
-    

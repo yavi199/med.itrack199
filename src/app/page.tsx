@@ -6,7 +6,7 @@ import { AppHeader } from "@/components/app/app-header";
 import { NewRequestCard } from "@/components/app/new-request-card";
 import { StudyTable } from "@/components/app/study-table";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Study } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -32,6 +32,7 @@ type ServiceSummary = {
 type ActiveFilters = {
     modalities: string[];
     services: string[];
+    statuses: string[];
 }
 
 const getModality = (studyName: string): string => {
@@ -52,7 +53,7 @@ export default function HomePage() {
   const [studies, setStudies] = useState<Study[]>([]);
   const [filteredStudies, setFilteredStudies] = useState<Study[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeFilters, setActiveFilters] = useState<ActiveFilters>({ modalities: [], services: [] });
+  const [activeFilters, setActiveFilters] = useState<ActiveFilters>({ modalities: [], services: [], statuses: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -63,7 +64,11 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!user) return;
+    
+    // The status filter will be applied on the client side for now to avoid complex queries
+    // or needing to create a new index for every combination.
     const q = query(collection(db, "studies"), orderBy("requestDate", "desc"));
+    
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const studiesData: Study[] = [];
         
@@ -136,6 +141,13 @@ export default function HomePage() {
             activeFilters.services.includes(item.service)
         );
     }
+
+    // Filter by active statuses
+    if (activeFilters.statuses.length > 0) {
+        filteredData = filteredData.filter(item =>
+            activeFilters.statuses.includes(item.status)
+        );
+    }
     
     setFilteredStudies(filteredData);
     
@@ -169,7 +181,7 @@ export default function HomePage() {
     );
   }
 
-  const toggleFilter = (type: 'modalities' | 'services', value: string) => {
+  const toggleFilter = (type: keyof ActiveFilters, value: string) => {
     setActiveFilters(prev => {
         const currentFilters = prev[type];
         const newFilters = currentFilters.includes(value)
@@ -250,11 +262,11 @@ export default function HomePage() {
             loading={loading}
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
+            activeFilters={activeFilters}
+            toggleFilter={toggleFilter}
             />
         </div>
       </main>
     </div>
   );
 }
-
-    
