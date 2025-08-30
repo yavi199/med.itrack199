@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Search, UploadCloud, Loader2, FileDown, User, FileText, ChevronRight } from "lucide-react";
+import { Search, UploadCloud, Loader2, FileDown, User, FileText, ChevronRight, X } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { extractOrder, ExtractOrderOutput } from '@/ai/flows/extract-order-flow';
 import { generateAuthorizationPdf } from '@/ai/flows/generate-authorization-pdf-flow';
@@ -23,75 +23,127 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Label } from '../ui/label';
 import { useAuth } from '@/context/auth-context';
 
+type UploadedFile = {
+    id: string;
+    file: File;
+    status: 'processing' | 'success' | 'error';
+    extractedData: ExtractOrderOutput | null;
+    errorMessage?: string;
+};
+
 export function NewRequestCard() {
     const { userProfile } = useAuth();
     const [dragging, setDragging] = useState(false);
-    const [isExtracting, setIsExtracting] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-    const [extractedData, setExtractedData] = useState<ExtractOrderOutput | null>(null);
+    const [activeData, setActiveData] = useState<ExtractOrderOutput | null>(null);
     const [showManualEntry, setShowManualEntry] = useState(false);
     const [showAdminChoice, setShowAdminChoice] = useState(false);
     const [showAuthorizationOptions, setShowAuthorizationOptions] = useState(false);
     const [patientId, setPatientId] = useState('');
     const [pdfGenerated, setPdfGenerated] = useState(false);
+    const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+    const [showMultiUploadDialog, setShowMultiUploadDialog] = useState(false);
+
     const { toast } = useToast();
 
     const handleFileChange = async (files: FileList | null) => {
-        if (files && files.length > 0) {
-            const file = files[0];
-            if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
-                toast({
-                    variant: "destructive",
-                    title: "Archivo no válido",
-                    description: "Por favor, sube una imagen o un PDF.",
-                });
+        if (!files || files.length === 0) return;
+        
+        setIsProcessing(true);
+        if (files.length === 1) {
+            await processSingleFile(files[0]);
+        } else {
+            await processMultipleFiles(Array.from(files));
+        }
+        setIsProcessing(false);
+    };
+
+    const processSingleFile = async (file: File) => {
+        if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+            toast({ variant: "destructive", title: "Archivo no válido", description: "Por favor, sube una imagen o un PDF." });
+            return;
+        }
+
+        setPdfGenerated(false);
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const dataUri = e.target?.result as string;
+            try {
+                const result = await extractOrder({ fileDataUri: dataUri });
+                setActiveData(result);
+                if (userProfile?.rol === 'administrador') {
+                    setShowAdminChoice(true);
+                } else {
+                    await handleCreateRequest(result);
+                }
+            } catch (error) {
+                toast({ variant: "destructive", title: "Error de Extracción", description: "No se pudo procesar el archivo. Intenta de nuevo." });
+                resetState();
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const processMultipleFiles = async (files: File[]) => {
+        setShowMultiUploadDialog(true);
+        const newFiles: UploadedFile[] = files.map(file => ({
+            id: `${file.name}-${Date.now()}`,
+            file,
+            status: 'processing',
+            extractedData: null,
+        }));
+        setUploadedFiles(newFiles);
+
+        await Promise.all(newFiles.map(async (uploadedFile) => {
+            if (!uploadedFile.file.type.startsWith('image/') && uploadedFile.file.type !== 'application/pdf') {
+                updateFileStatus(uploadedFile.id, 'error', null, "Archivo no válido");
                 return;
             }
-            setIsExtracting(true);
-            setPdfGenerated(false);
 
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const dataUri = e.target?.result as string;
                 try {
                     const result = await extractOrder({ fileDataUri: dataUri });
-                    setExtractedData(result);
-                    if (userProfile?.rol === 'administrador') {
-                        setShowAdminChoice(true);
-                    } else {
-                        // For non-admins, create request directly
-                        await handleCreateRequest(result);
-                    }
+                    updateFileStatus(uploadedFile.id, 'success', result);
                 } catch (error) {
-                    toast({
-                        variant: "destructive",
-                        title: "Error de Extracción",
-                        description: "No se pudo procesar el archivo. Intenta de nuevo.",
-                    });
-                     resetState();
-                } finally {
-                    setIsExtracting(false);
+                    updateFileStatus(uploadedFile.id, 'error', null, "Error de extracción");
                 }
             };
-            reader.readAsDataURL(file);
-        }
+            reader.readAsDataURL(uploadedFile.file);
+        }));
+    };
+    
+    const updateFileStatus = (id: string, status: 'success' | 'error', data: ExtractOrderOutput | null, message?: string) => {
+        setUploadedFiles(prev => prev.map(f => f.id === id ? { ...f, status, extractedData: data, errorMessage: message } : f));
+    }
+    
+    const removeFileFromList = (id: string) => {
+        setUploadedFiles(prev => prev.filter(f => f.id !== id));
     };
 
+
     const resetState = () => {
-        setExtractedData(null);
+        setActiveData(null);
         setShowManualEntry(false);
         setPatientId('');
         setPdfGenerated(false);
         setShowAdminChoice(false);
         setShowAuthorizationOptions(false);
+        setUploadedFiles([]);
+        setShowMultiUploadDialog(false);
     }
 
-    const handleCreateRequest = async (dataToSave: ExtractOrderOutput | null) => {
+    const handleCreateRequest = async (dataToSave: ExtractOrderOutput | null, isMulti = false) => {
         if (!dataToSave) return;
+        
+        if (!isMulti) {
+            setIsCreating(true);
+            setShowAdminChoice(false);
+        }
 
-        setIsCreating(true);
-        setShowAdminChoice(false); // Close admin dialog if open
         try {
             const studyData = {
                 patient: { ...dataToSave.patient },
@@ -116,87 +168,75 @@ export function NewRequestCard() {
                     generatedAt: serverTimestamp(),
                 });
             }
+             if (!isMulti) {
+                toast({ title: "Solicitud Creada", description: `Solicitud para ${dataToSave.patient?.fullName} ha sido creada con el ID: ${docRef.id}.` });
+                resetState();
+            }
 
-            toast({
-                title: "Solicitud Creada",
-                description: `Solicitud para ${dataToSave.patient?.fullName} ha sido creada con el ID: ${docRef.id}.`,
-            });
-            resetState();
+            return { success: true, patientName: dataToSave.patient?.fullName };
         } catch (error) {
             console.error("Error creating request:", error);
-            toast({
-                variant: "destructive",
-                title: "Error al Crear Solicitud",
-                description: "No se pudo guardar la solicitud en la base de datos.",
-            });
+            if (!isMulti) {
+                toast({ variant: "destructive", title: "Error al Crear Solicitud", description: "No se pudo guardar la solicitud en la base de datos." });
+            }
+            return { success: false, patientName: dataToSave.patient?.fullName };
         } finally {
-            setIsCreating(false);
+            if (!isMulti) {
+                setIsCreating(false);
+            }
         }
     };
     
+    const handleCreateAllRequests = async () => {
+        setIsCreating(true);
+        const successfulFiles = uploadedFiles.filter(f => f.status === 'success' && f.extractedData);
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const file of successfulFiles) {
+            const result = await handleCreateRequest(file.extractedData, true);
+            if (result.success) {
+                successCount++;
+            } else {
+                errorCount++;
+            }
+        }
+        
+        toast({
+            title: "Proceso de Carga Masiva Terminado",
+            description: `${successCount} solicitudes creadas exitosamente. ${errorCount > 0 ? `${errorCount} fallaron.` : ''}`
+        });
+
+        setIsCreating(false);
+        resetState();
+    };
+    
     const handleGenerateAuthorization = async (type: 'eps' | 'own') => {
-        if (!extractedData) return;
+        if (!activeData) return;
 
         if (type === 'eps') {
-            const patient = extractedData.patient;
-            const study = extractedData.studies[0];
-            const diagnosis = extractedData.diagnosis;
-
+            const { patient, studies, diagnosis } = activeData;
             const subject = `Solicitud de Autorización para ${patient.fullName} - ID ${patient.id}`;
-            const body = `Buen día,
-
-Solicito amablemente la autorización para el siguiente procedimiento para el paciente ${patient.fullName} (ID: ${patient.id}):
-
-- Estudio: ${study.nombre}
-- CUPS: ${study.cups}
-- Diagnóstico: ${diagnosis.description} (${diagnosis.code})
-
-Adjunto la orden médica.
-
-Quedo atento a su respuesta.
-
-Saludos cordiales.
-`;
-            const mailtoLink = `mailto:autorizaciones@eps.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-            window.location.href = mailtoLink;
-            toast({
-                title: "Abriendo cliente de correo",
-                description: "Prepara el correo para enviarlo a la EPS.",
-            });
-
+            const body = `Buen día,\n\nSolicito amablemente la autorización para el siguiente procedimiento para el paciente ${patient.fullName} (ID: ${patient.id}):\n\n- Estudio: ${studies[0].nombre}\n- CUPS: ${studies[0].cups}\n- Diagnóstico: ${diagnosis.description} (${diagnosis.code})\n\nAdjunto la orden médica.\n\nQuedo atento a su respuesta.\n\nSaludos cordiales.`;
+            window.location.href = `mailto:autorizaciones@eps.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            toast({ title: "Abriendo cliente de correo", description: "Prepara el correo para enviarlo a la EPS." });
         } else if (type === 'own') {
             setIsGeneratingPdf(true);
-            toast({
-                title: "Generando Autorización",
-                description: `Se está creando el PDF para ${extractedData.patient.fullName}.`,
-            });
+            toast({ title: "Generando Autorización", description: `Se está creando el PDF para ${activeData.patient.fullName}.` });
             try {
-                const result = await generateAuthorizationPdf(extractedData);
-                const { pdfBase64 } = result;
-
+                const { pdfBase64 } = await generateAuthorizationPdf(activeData);
                 const link = document.createElement('a');
                 link.href = `data:application/pdf;base64,${pdfBase64}`;
-                link.download = `Autorizacion-propia-${extractedData.patient.id}.pdf`;
+                link.download = `Autorizacion-propia-${activeData.patient.id}.pdf`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-
-                toast({
-                    title: "PDF Descargado",
-                    description: "El archivo de autorización se ha descargado correctamente.",
-                    action: <FileDown />,
-                });
+                toast({ title: "PDF Descargado", description: "El archivo de autorización se ha descargado correctamente.", action: <FileDown /> });
                 setPdfGenerated(true);
-                // After generating, we go back to the first admin choice dialog
                 setShowAuthorizationOptions(false);
                 setShowAdminChoice(true);
-                
             } catch (error) {
-                 toast({
-                    variant: "destructive",
-                    title: "Error al Generar PDF",
-                    description: "No se pudo crear el archivo PDF. Por favor, intenta de nuevo.",
-                });
+                toast({ variant: "destructive", title: "Error al Generar PDF", description: "No se pudo crear el archivo PDF. Por favor, intenta de nuevo." });
             } finally {
                 setIsGeneratingPdf(false);
             }
@@ -212,32 +252,11 @@ Saludos cordiales.
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
         const data: ExtractOrderOutput = {
-            patient: {
-                id: formData.get('patientId') as string,
-                fullName: formData.get('fullName') as string,
-                birthDate: formData.get('birthDate') as string,
-                sex: formData.get('sex') as string,
-                entidad: formData.get('entidad') as string,
-            },
-            studies: [{
-                cups: formData.get('cups') as string,
-                nombre: formData.get('studyName') as string,
-                details: formData.get('studyDetails') as string,
-            }],
-            diagnosis: {
-                code: formData.get('cie10') as string,
-                description: formData.get('diagnosisDescription') as string,
-            },
-            physician: {
-                fullName: formData.get('physicianName') as string,
-                registryNumber: formData.get('physicianRegistry') as string,
-                specialty: formData.get('physicianSpecialty') as string,
-            },
-            order: {
-                date: formData.get('orderDate') as string,
-                institutionName: formData.get('institutionName') as string,
-                admissionNumber: formData.get('admissionNumber') as string,
-            }
+            patient: { id: formData.get('patientId') as string, fullName: formData.get('fullName') as string, birthDate: formData.get('birthDate') as string, sex: formData.get('sex') as string, entidad: formData.get('entidad') as string },
+            studies: [{ cups: formData.get('cups') as string, nombre: formData.get('studyName') as string, details: formData.get('studyDetails') as string }],
+            diagnosis: { code: formData.get('cie10') as string, description: formData.get('diagnosisDescription') as string },
+            physician: { fullName: formData.get('physicianName') as string, registryNumber: formData.get('physicianRegistry') as string, specialty: formData.get('physicianSpecialty') as string },
+            order: { date: formData.get('orderDate') as string, institutionName: formData.get('institutionName') as string, admissionNumber: formData.get('admissionNumber') as string }
         };
         await handleCreateRequest(data);
     };
@@ -249,8 +268,7 @@ Saludos cordiales.
         e.preventDefault();
         e.stopPropagation();
         setDragging(false);
-        const files = e.dataTransfer.files;
-        handleFileChange(files);
+        handleFileChange(e.dataTransfer.files);
     };
 
     const handleIdInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -273,7 +291,8 @@ Saludos cordiales.
                         className="hidden"
                         onChange={(e) => handleFileChange(e.target.files)}
                         accept="image/*,application/pdf"
-                        disabled={isExtracting || isCreating}
+                        disabled={isProcessing || isCreating}
+                        multiple // Allow multiple files
                     />
                     <label
                         htmlFor="file-upload"
@@ -283,12 +302,12 @@ Saludos cordiales.
                         onDrop={handleDrop}
                         className={cn(
                             "border-2 border-dashed rounded-lg p-6 text-center flex flex-col items-center justify-center h-full w-full bg-primary/10 border-primary/40 transition-colors",
-                            !(isExtracting || isCreating) && "cursor-pointer hover:border-primary",
+                            !(isProcessing || isCreating) && "cursor-pointer hover:border-primary",
                             dragging && "border-primary bg-primary/20"
                         )}
                     >
                         <div className="flex flex-col items-center justify-center gap-2 text-primary-foreground">
-                            {isExtracting ? (
+                            {isProcessing ? (
                                 <>
                                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                     <p className="text-sm font-semibold text-foreground">Procesando...</p>
@@ -310,7 +329,7 @@ Saludos cordiales.
                             value={patientId}
                             onChange={(e) => setPatientId(e.target.value)}
                             onKeyDown={handleIdInputKeyDown}
-                            disabled={isExtracting || isCreating}
+                            disabled={isProcessing || isCreating}
                             suppressHydrationWarning
                         />
                     </div>
@@ -323,7 +342,7 @@ Saludos cordiales.
                     <AlertDialogHeader>
                         <AlertDialogTitle>Orden Procesada Exitosamente</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Se ha extraído la información para <span className="font-bold">{extractedData?.patient.fullName}</span>.
+                            Se ha extraído la información para <span className="font-bold">{activeData?.patient.fullName}</span>.
                              {pdfGenerated && <span className="block mt-2 font-semibold text-green-600">✓ PDF de autorización ya generado.</span>}
                             ¿Qué deseas hacer a continuación?
                         </AlertDialogDescription>
@@ -333,7 +352,7 @@ Saludos cordiales.
                             <FileText />
                             Generar Autorización
                         </Button>
-                         <Button variant="outline" className="h-20 flex-col gap-2" onClick={() => handleCreateRequest(extractedData)}>
+                         <Button variant="outline" className="h-20 flex-col gap-2" onClick={() => handleCreateRequest(activeData)}>
                              <User />
                             Crear Solicitud
                         </Button>
@@ -350,8 +369,8 @@ Saludos cordiales.
                     <AlertDialogHeader>
                         <AlertDialogTitle>Generar Autorización</AlertDialogTitle>
                         <AlertDialogDescription>
-                             <div>Paciente: <span className="font-bold">{extractedData?.patient.fullName}</span></div>
-                             <div>Estudio: <span className="font-bold">{extractedData?.studies[0]?.nombre}</span></div>
+                             <div>Paciente: <span className="font-bold">{activeData?.patient.fullName}</span></div>
+                             <div>Estudio: <span className="font-bold">{activeData?.studies[0]?.nombre}</span></div>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="sm:justify-between gap-2 pt-4">
@@ -362,6 +381,54 @@ Saludos cordiales.
                         <Button onClick={() => handleGenerateAuthorization('own')} disabled={isGeneratingPdf}>
                             {isGeneratingPdf && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Autorización Propia
+                        </Button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Multi-upload Dialog */}
+             <AlertDialog open={showMultiUploadDialog} onOpenChange={(open) => { if (!open) resetState() }}>
+                <AlertDialogContent className="max-w-2xl max-h-[90vh]">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Revisar Carga Múltiple</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Se están procesando {uploadedFiles.length} archivos. Revisa los resultados y crea las solicitudes.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="overflow-y-auto max-h-[60vh] p-1 -mx-1">
+                        <ul className="space-y-2">
+                            {uploadedFiles.map(f => (
+                                <li key={f.id} className="flex items-center gap-3 p-2 rounded-md bg-muted/50">
+                                    <div className="flex-grow">
+                                        <p className="text-sm font-medium truncate">{f.file.name}</p>
+                                        {f.status === 'success' && f.extractedData && (
+                                            <p className="text-xs text-muted-foreground">
+                                                <span className="font-semibold text-green-600">Éxito:</span> {f.extractedData.patient.fullName} - {f.extractedData.studies[0]?.nombre}
+                                            </p>
+                                        )}
+                                        {f.status === 'error' && (
+                                            <p className="text-xs text-destructive">{f.errorMessage}</p>
+                                        )}
+                                    </div>
+                                    <div className="flex-shrink-0">
+                                        {f.status === 'processing' && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
+                                        {f.status !== 'processing' && (
+                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeFileFromList(f.id)}>
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                    <AlertDialogFooter>
+                        <Button variant="outline" onClick={resetState}>Cancelar</Button>
+                        <Button 
+                            onClick={handleCreateAllRequests} 
+                            disabled={isCreating || uploadedFiles.every(f => f.status !== 'success')}>
+                            {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Crear ({uploadedFiles.filter(f => f.status === 'success').length}) Solicitudes
                         </Button>
                     </AlertDialogFooter>
                 </AlertDialogContent>
