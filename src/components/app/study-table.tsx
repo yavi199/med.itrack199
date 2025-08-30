@@ -224,7 +224,7 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm, active
                                 <TableHead className="p-2 text-center" style={{ width: '120px' }}>
                                      <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                             <Button variant="ghost" size="sm" className="font-bold h-8">
+                                             <Button variant="ghost" size="sm" className="font-bold h-8 w-full justify-center">
                                                 Estado
                                             </Button>
                                         </DropdownMenuTrigger>
@@ -269,18 +269,7 @@ export function StudyTable({ studies, loading, searchTerm, setSearchTerm, active
                                                 )}
                                             >
                                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {dateRange?.from ? (
-                                                    dateRange.to ? (
-                                                    <>
-                                                        {format(dateRange.from, "LLL dd, y")} -{" "}
-                                                        {format(dateRange.to, "LLL dd, y")}
-                                                    </>
-                                                    ) : (
-                                                    format(dateRange.from, "LLL dd, y")
-                                                    )
-                                                ) : (
-                                                    <span>Fecha</span>
-                                                )}
+                                                <span>Fecha</span>
                                             </Button>
                                         </PopoverTrigger>
                                         <PopoverContent className="w-auto p-0" align="center">
