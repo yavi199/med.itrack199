@@ -33,7 +33,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
   const [rol, setRol] = useState<UserRole>('enfermero');
-  const [servicioAsignado, setServicioAsignado] = useState<Service | SubServiceArea>('General');
+  const [servicioAsignado, setServicioAsignado] = useState<Service | SubServiceArea>('TRIAGE');
   
   const { signup, userProfile } = useAuth();
   const router = useRouter();
@@ -50,10 +50,12 @@ export default function SignupPage() {
   const handleRoleChange = (value: UserRole) => {
     setRol(value);
     // Reset service when role changes to avoid invalid combinations
-    if (value === 'enfermero') {
-      setServicioAsignado('TRIAGE');
-    } else {
+    if (value === 'administrador') {
       setServicioAsignado('General');
+    } else if (value === 'enfermero') {
+      setServicioAsignado('TRIAGE');
+    } else { // tecnologo or transcriptora
+      setServicioAsignado('TAC');
     }
   }
 
@@ -92,7 +94,17 @@ export default function SignupPage() {
     }
   };
 
-  const serviceOptions = rol === 'enfermero' ? subServiceAreas : services;
+  const getServiceOptions = () => {
+    if (rol === 'enfermero') {
+      return subServiceAreas;
+    }
+    if (rol === 'tecnologo' || rol === 'transcriptora') {
+      return services.filter(s => s !== 'General');
+    }
+    return [];
+  };
+
+  const serviceOptions = getServiceOptions();
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background py-12">
@@ -142,7 +154,7 @@ export default function SignupPage() {
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label htmlFor="rol">Rol</Label>
-                    <Select onValueChange={handleRoleChange} defaultValue={rol}>
+                    <Select onValueChange={(value: UserRole) => handleRoleChange(value)} defaultValue={rol}>
                         <SelectTrigger id="rol">
                             <SelectValue placeholder="Selecciona un rol" />
                         </SelectTrigger>
@@ -151,17 +163,19 @@ export default function SignupPage() {
                         </SelectContent>
                     </Select>
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="servicio">{rol === 'enfermero' ? 'Área de Servicio' : 'Servicio'}</Label>
-                    <Select onValueChange={(value: Service | SubServiceArea) => setServicioAsignado(value)} value={servicioAsignado}>
-                        <SelectTrigger id="servicio">
-                            <SelectValue placeholder="Selecciona una opción" />
-                        </SelectTrigger>
-                        <SelectContent>
-                             {serviceOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                </div>
+                {rol !== 'administrador' && (
+                    <div className="space-y-2">
+                        <Label htmlFor="servicio">{rol === 'enfermero' ? 'Área de Servicio' : 'Servicio'}</Label>
+                        <Select onValueChange={(value: Service | SubServiceArea) => setServicioAsignado(value)} value={servicioAsignado}>
+                            <SelectTrigger id="servicio">
+                                <SelectValue placeholder="Selecciona una opción" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {serviceOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
@@ -177,3 +191,4 @@ export default function SignupPage() {
     </div>
   );
 }
+
