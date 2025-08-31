@@ -20,6 +20,7 @@
     --accent-foreground: 240 10% 3.9%; /* Dark grey for text on yellow */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
+    --success: 120 100% 19.3%; /* The green you want */
     --border: 240 5.9% 80%;
     --input: 240 5.9% 90%;
     --ring: 45 95% 51%; /* Yellow */
@@ -50,6 +51,7 @@
     --accent-foreground: 240 10% 3.9%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
+    --success: 120 100% 19.3%; /* The green you want */
     --border: 240 3.7% 25%;
     --input: 240 3.7% 15.9%;
     --ring: 45 95% 51%;

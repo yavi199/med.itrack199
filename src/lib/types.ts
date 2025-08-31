@@ -1,5 +1,4 @@
 
-
 export type UserRole = "administrador" | "enfermero" | "tecnologo" | "transcriptora";
 
 export type Service = "TAC" | "RX" | "ECO" | "MAMO" | "DENSITOMETRIA" | "RMN" | "General";

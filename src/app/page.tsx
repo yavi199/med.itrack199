@@ -71,8 +71,6 @@ export default function HomePage() {
   useEffect(() => {
     if (!user) return;
     
-    // The status filter will be applied on the client side for now to avoid complex queries
-    // or needing to create a new index for every combination.
     const q = query(collection(db, "studies"), orderBy("requestDate", "desc"));
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -102,6 +100,7 @@ export default function HomePage() {
                     nombre: firstStudy.nombre || 'N/A',
                     cups: firstStudy.cups || 'N/A',
                     modality: modality,
+                    details: firstStudy.details || '',
                 }],
                 diagnosis: {
                     code: data.diagnosis?.code || 'N/A',
@@ -124,7 +123,6 @@ export default function HomePage() {
     let filteredData = studies;
     const lowercasedFilter = searchTerm.toLowerCase();
 
-    // Filter by search term
     if (searchTerm) {
         filteredData = filteredData.filter(item => {
             return (
@@ -134,47 +132,38 @@ export default function HomePage() {
         });
     }
     
-    // Filter by active modalities
     if (activeFilters.modalities.length > 0) {
         filteredData = filteredData.filter(item => 
             activeFilters.modalities.includes(item.studies[0].modality)
         );
     }
 
-    // Filter by active services
     if (activeFilters.services.length > 0) {
         filteredData = filteredData.filter(item =>
             activeFilters.services.includes(item.service)
         );
     }
 
-    // Filter by active statuses
     if (activeFilters.statuses.length > 0) {
         filteredData = filteredData.filter(item =>
             activeFilters.statuses.includes(item.status)
         );
     }
 
-    // Filter by date range
     if (dateRange?.from) {
         filteredData = filteredData.filter(item => {
             if (!item.requestDate) return false;
             const itemDate = item.requestDate.toDate();
-            // Set 'from' to the beginning of the day
             const fromDate = new Date(dateRange.from!);
             fromDate.setHours(0, 0, 0, 0);
-
-            // Set 'to' to the end of the day if it exists, otherwise use 'from'
             const toDate = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from!);
             toDate.setHours(23, 59, 59, 999);
-
             return itemDate >= fromDate && itemDate <= toDate;
         });
     }
 
     setFilteredStudies(filteredData);
     
-    // Recalculate summary counts for pending studies
     const pendingStudies = studies.filter(s => s.status === 'Pendiente');
     const newSummary: Summary = { ECO: 0, RX: 0, TAC: 0, RMN: 0 };
     const newServiceSummary: ServiceSummary = { URG: 0, HOSP: 0, UCI: 0, 'C. EXT': 0 };

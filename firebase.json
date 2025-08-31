@@ -17,7 +17,7 @@
     }
   },
   "apphosting": {
-    "backendId": "med-itrack199backend",
+    "backendId": "med-itrack1e9backend",
     "rootDir": "/",
     "ignore": [
       "node_modules",
@@ -27,5 +27,8 @@
       "functions"
     ],
     "alwaysDeployFromSource": true
+  },
+  "functions": {
+    "source": "functions"
   }
 }
